@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="subtitle">FMCS & BIS certification quotation suite</div>
+
+<div class="grid-3" style="margin-bottom:24px;">
+  <div class="stat">
+    <div class="stat-value">{{ quotations|length }}</div>
+    <div class="stat-label">Recent Quotations</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ clients|length }}</div>
+    <div class="stat-label">Clients</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ "AI" if ai_on else "Rules" }}</div>
+    <div class="stat-label">Command parsing mode</div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <h2 style="margin:0;">Recent Quotations</h2>
+    <a class="btn" href="{{ url_for('generate_page') }}">+ New Quotation</a>
+  </div>
+  {% if quotations %}
+  <table>
+    <tr><th>Client</th><th>Country</th><th>IS Standards</th><th>Total (USD)</th><th>Status</th><th></th></tr>
+    {% for q in quotations %}
+    <tr>
+      <td>{{ q.client_name }}</td>
+      <td>{{ q.country }}</td>
+      <td>{{ q.is_items|map(attribute='is_number')|join(', ') }}</td>
+      <td>${{ "%.2f"|format(q.result.total_usd) }}</td>
+      <td><span class="badge neutral">{{ q.status }}</span></td>
+      <td><a href="{{ url_for('view_quotation', qid=q.id) }}">View →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No quotations yet. <a href="{{ url_for('generate_page') }}">Create your first one</a>.</p>
+  {% endif %}
+</div>
+{% endblock %}

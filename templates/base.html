@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Sun Consultants{% endblock %} — FMCS/BIS Quotation Suite</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="shell">
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">SC</div>
+      <div>
+        <div class="brand-name">Sun Consultants</div>
+        <div class="brand-sub">Quotation Suite</div>
+      </div>
+    </div>
+    <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+    <a class="nav-link {% if request.path == '/generate' %}active{% endif %}" href="{{ url_for('generate_page') }}">Generate Quotation</a>
+    <a class="nav-link {% if request.path == '/review' %}active{% endif %}" href="{{ url_for('review_page') }}">Review Quotation</a>
+    <a class="nav-link {% if request.path == '/quotations' %}active{% endif %}" href="{{ url_for('list_quotations') }}">All Quotations</a>
+    <a class="nav-link {% if request.path == '/clients' %}active{% endif %}" href="{{ url_for('list_clients') }}">Clients</a>
+    {% if session.get('ok') %}<a class="nav-link" href="{{ url_for('logout') }}" style="margin-top:auto;">Sign out</a>{% endif %}
+  </nav>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Review Quotation{% endblock %}
+{% block content %}
+<h1>Review Quotation</h1>
+<div class="subtitle">Upload an existing quotation (.xlsx) and check it against the standard pricing formula.</div>
+
+<div class="card">
+  <div class="pill-row">
+    <span class="ai-status {{ 'on' if ai_on else '' }}"><span class="dot"></span>{{ 'AI-assisted summary' if ai_on else 'Rule-based summary (set ANTHROPIC_API_KEY to upgrade)' }}</span>
+  </div>
+  <div class="upload-zone" id="dropZone">
+    <div id="dropText">Drag & drop a quotation .xlsx here, or click to browse</div>
+    <input type="file" id="fileInput" accept=".xlsx" style="display:none;">
+  </div>
+  <div class="grid-2" style="margin-top:16px;">
+    <div class="field">
+      <label>Country (used to determine per-diem/travel bracket — auto-filled from file notes if found)</label>
+      <input type="text" id="reviewCountry">
+    </div>
+    <div class="field">
+      <label>Exchange Rate used (INR per USD) — leave blank to use live rate</label>
+      <input type="number" id="reviewRate" step="0.01">
+    </div>
+  </div>
+  <button class="btn" id="reviewBtn" disabled>Review Quotation</button>
+</div>
+
+<div id="reviewResult"></div>
+
+<script src="{{ url_for('static', filename='review.js') }}"></script>
+{% endblock %}

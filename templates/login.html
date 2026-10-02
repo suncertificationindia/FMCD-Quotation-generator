@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — Sun Consultants Quotation Suite</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div style="max-width:380px;margin:12vh auto;padding:0 16px;">
+  <div class="card">
+    <h1 style="margin-bottom:4px;">Sun Consultants</h1>
+    <div class="subtitle">Quotation Suite — please sign in</div>
+    <form method="post">
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autofocus required
+               style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+      </div>
+      {% if error %}<div class="badge bad" style="margin-bottom:12px;">{{ error }}</div>{% endif %}
+      <button class="btn" type="submit">Sign in</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

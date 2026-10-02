@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+<h1>Clients</h1>
+<div class="subtitle">{{ clients|length }} total</div>
+<div class="card">
+  {% if clients %}
+  <table>
+    <tr><th>Name</th><th>Country</th><th>Added</th></tr>
+    {% for c in clients %}
+    <tr>
+      <td>{{ c.name }}</td>
+      <td>{{ c.country }}</td>
+      <td>{{ c.created_at[:10] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No clients yet — they're created automatically when you generate a quotation.</p>
+  {% endif %}
+</div>
+{% endblock %}

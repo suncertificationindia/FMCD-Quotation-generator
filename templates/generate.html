@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Generate Quotation{% endblock %}
+{% block content %}
+<h1>Generate Quotation</h1>
+<div class="subtitle">Describe the request in plain English, or fill the form directly.</div>
+
+<div class="card">
+  <div class="pill-row">
+    <span class="ai-status {{ 'on' if ai_on else '' }}"><span class="dot"></span>{{ 'AI-assisted command parsing' if ai_on else 'Rule-based command parsing (set ANTHROPIC_API_KEY to upgrade)' }}</span>
+  </div>
+  <label>Command</label>
+  <div class="command-box">
+    <input type="text" id="commandInput" placeholder="e.g. Create a quotation for Jusen Hardware in Vietnam for IS 18297">
+    <button class="btn" id="parseBtn">Parse</button>
+  </div>
+  <div class="muted" style="margin-top:8px;">This fills in the client, country and IS numbers below — you'll still need to enter testing/marking fee amounts per IS, since those come from external sources.</div>
+</div>
+
+<div class="card">
+  <h2>Quotation Details</h2>
+  <div class="grid-2">
+    <div class="field">
+      <label>Client Name</label>
+      <input type="text" id="clientName">
+    </div>
+    <div class="field">
+      <label>Country</label>
+      <input type="text" id="country" list="countryList">
+      <datalist id="countryList"></datalist>
+    </div>
+  </div>
+  <div class="field">
+    <label>Exchange Rate (INR per 1 USD)</label>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <input type="number" id="exchangeRate" step="0.01" value="{{ rate_info.rate }}" style="max-width:160px;">
+      <span class="muted" id="rateSource">{{ 'Live rate' if rate_info.live else 'Fallback rate — verify manually' }}</span>
+      <button class="btn secondary" id="refreshRate" type="button">Refresh</button>
+    </div>
+  </div>
+
+  <h2 style="margin-top:20px;">IS Standards</h2>
+  <div id="isItemsContainer"></div>
+  <button class="btn secondary" id="addIsBtn" type="button">+ Add IS Standard</button>
+</div>
+
+<div class="card">
+  <button class="btn" id="calcBtn" type="button">Calculate Quotation</button>
+  <div id="resultBox" style="margin-top:20px; display:none;"></div>
+</div>
+
+<template id="isItemTemplate">
+  <div class="is-item-card">
+    <div class="row">
+      <div class="field">
+        <label>IS Number</label>
+        <input type="text" class="is-number" placeholder="e.g. 17632">
+      </div>
+      <div class="field">
+        <label>Product Name (optional)</label>
+        <input type="text" class="is-product">
+      </div>
+      <div class="field">
+        <label>Consultancy Charge (USD)</label>
+        <input type="number" class="is-consultancy" value="{{ default_consultancy }}">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Sample Testing Charge (USD)</label>
+        <input type="number" class="is-testing" placeholder="check external lab site">
+      </div>
+      <div class="field">
+        <label>Minimum Marking Fee / Year (USD)</label>
+        <input type="number" class="is-marking" placeholder="enter value">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="btn secondary remove-is" type="button" style="width:100%;">Remove</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="{{ url_for('static', filename='generate.js') }}"></script>
+{% endblock %}

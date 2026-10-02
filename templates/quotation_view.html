@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Quotation - {{ q.client_name }}{% endblock %}
+{% block content %}
+<h1>{{ q.client_name }}</h1>
+<div class="subtitle">{{ q.country }} · {{ q.is_items|map(attribute='is_number')|join(', ') }} · Created {{ q.created_at[:10] }}</div>
+
+<div class="card">
+  <div class="pill-row">
+    <span class="badge neutral">Status: {{ q.status }}</span>
+    <span class="badge neutral">Exchange rate: ₹{{ q.exchange_rate }}</span>
+  </div>
+  <table>
+    <tr><th>Item</th><th>Amount (USD)</th></tr>
+    <tr><td>Application Fee (x{{ q.result.n }})</td><td>${{ q.result.line_items.application_fee_usd_each }} each</td></tr>
+    <tr><td>Inspection Charge ({{ q.result.man_days }} man-days)</td><td>${{ q.result.line_items.inspection_usd }}</td></tr>
+    <tr><td>Travel expenses of BIS officer</td><td>${{ q.result.line_items.travel_officer_usd }}</td></tr>
+    <tr><td>Per Diem ({{ q.result.per_diem_days }} days @ ${{ q.result.per_diem_rate }}/day)</td><td>${{ q.result.line_items.per_diem_usd }}</td></tr>
+    <tr><td>Contingency funds</td><td>${{ q.result.line_items.contingency_usd }}</td></tr>
+    <tr><td>Sample Testing Charges</td><td>${{ q.result.line_items.sample_testing_per_is|join(', $') }}</td></tr>
+    <tr><td>Minimum Marking Fee / Year</td><td>${{ q.result.line_items.min_marking_per_is|join(', $') }}</td></tr>
+    <tr><td>License Fee (x{{ q.result.n }})</td><td>${{ q.result.line_items.license_fee_usd_each }} each</td></tr>
+    <tr><td>PBG (not in total)</td><td>${{ q.result.line_items.pbg_usd_each }} each</td></tr>
+    <tr><td>Consultancy Charges</td><td>${{ q.result.line_items.consultancy_per_is|join(', $') }}</td></tr>
+  </table>
+  <div class="total-line">Total (Excluding PBG): ${{ "%.2f"|format(q.result.total_usd) }}</div>
+
+  <div style="margin-top:20px;">
+    <a class="btn" href="{{ url_for('download_quotation', qid=q.id) }}">Download .xlsx</a>
+    <a class="btn secondary" href="{{ url_for('list_quotations') }}">Back to all quotations</a>
+  </div>
+</div>
+{% endblock %}
