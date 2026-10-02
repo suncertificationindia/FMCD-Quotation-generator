@@ -1,12 +1,13 @@
 :root {
-  --navy: #0f2a4a;
-  --navy-2: #16345c;
-  --blue: #2563eb;
-  --blue-light: #eff4ff;
-  --ink: #1a2233;
-  --muted: #64748b;
-  --border: #e2e8f0;
-  --bg: #f6f8fb;
+  --navy: #f5c518;
+  --navy-2: #e0b000;
+  --blue: #f5c518;
+  --blue-light: #fff4c2;
+  --on-yellow: #231c00;
+  --ink: #1f1b0a;
+  --muted: #6b6540;
+  --border: #ece4c2;
+  --bg: #fffdf3;
   --ok: #16a34a;
   --warn: #d97706;
   --bad: #dc2626;
@@ -30,7 +31,7 @@ body {
 .sidebar {
   width: 230px;
   background: var(--navy);
-  color: #fff;
+  color: var(--on-yellow);
   padding: 20px 14px;
   display: flex;
   flex-direction: column;
@@ -47,25 +48,26 @@ body {
 
 .brand-mark {
   width: 36px; height: 36px;
-  background: var(--blue);
+  background: var(--on-yellow);
+  color: var(--blue);
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 14px;
 }
 
 .brand-name { font-weight: 700; font-size: 14px; }
-.brand-sub { font-size: 11px; color: #9fb3d1; }
+.brand-sub { font-size: 11px; color: #5e4d00; }
 
 .nav-link {
-  color: #c7d5ea;
+  color: #3a2f00;
   text-decoration: none;
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
 }
-.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
-.nav-link.active { background: var(--blue); color: #fff; }
+.nav-link:hover { background: rgba(0,0,0,0.08); color: var(--on-yellow); }
+.nav-link.active { background: var(--on-yellow); color: var(--blue); }
 
 .content {
   flex: 1;
@@ -105,7 +107,7 @@ tr:hover td { background: #fafbfd; }
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--blue);
-  color: #fff;
+  color: var(--on-yellow);
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
@@ -114,7 +116,7 @@ tr:hover td { background: #fafbfd; }
   cursor: pointer;
   text-decoration: none;
 }
-.btn:hover { background: #1d4ed8; }
+.btn:hover { background: #e0b000; }
 .btn.secondary { background: #fff; color: var(--ink); border: 1px solid var(--border); }
 .btn.secondary:hover { background: #f1f5f9; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -143,7 +145,7 @@ label { font-size: 13px; font-weight: 600; color: var(--ink); display: block; ma
 .badge.ok { background: #dcfce7; color: var(--ok); }
 .badge.warn { background: #fef3c7; color: var(--warn); }
 .badge.bad { background: #fee2e2; color: var(--bad); }
-.badge.info { background: var(--blue-light); color: var(--blue); }
+.badge.info { background: var(--blue-light); color: #7a5a00; }
 .badge.neutral { background: #f1f5f9; color: var(--muted); }
 
 .command-box {
@@ -194,3 +196,6 @@ label { font-size: 13px; font-weight: 600; color: var(--ink); display: block; ma
 }
 .ai-status.on { background: #ecfdf5; color: var(--ok); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+a { color: #7a5a00; }
+.btn.secondary { color: var(--ink); }
