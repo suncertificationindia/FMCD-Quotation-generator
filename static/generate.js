@@ -1,3 +1,19 @@
+function esc(text) {
+  return String(text).replace(/[&<>"']/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+}
+
+async function postJson(url, payload) {
+  const resp = await fetch(url, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  try {
+    return await resp.json();
+  } catch (e) {
+    return {ok: false, error: 'The server sent an unexpected reply (status ' + resp.status + '). Please try again.'};
+  }
+}
+
 const container = document.getElementById('isItemsContainer');
 const template = document.getElementById('isItemTemplate');
 
@@ -48,9 +64,12 @@ function collectIsItems() {
   return Array.from(document.querySelectorAll('.is-item-card')).map(card => ({
     is_number: card.querySelector('.is-number').value.trim(),
     product_name: card.querySelector('.is-product').value.trim(),
-    sample_testing_usd: card.querySelector('.is-testing').value || 0,
-    min_marking_fee_usd: card.querySelector('.is-marking').value || 0,
-    consultancy_usd: card.querySelector('.is-consultancy').value || 5000,
+    sample_testing_usd: card.querySelector('.is-testing').value.trim(),
+    min_marking_fee_usd: card.querySelector('.is-marking').value.trim(),
+    consultancy_usd: card.querySelector('.is-consultancy').value.trim(),
+    unit_price_inr: card.querySelector('.is-unit-price').value.trim(),
+    unit_size: card.querySelector('.is-unit-size').value.trim(),
+    annual_production: card.querySelector('.is-production').value.trim(),
   })).filter(i => i.is_number);
 }
 
@@ -63,19 +82,12 @@ document.getElementById('calcBtn').addEventListener('click', async () => {
     exchange_rate: document.getElementById('exchangeRate').value,
     is_items: collectIsItems(),
   };
-  if (!payload.client_name || !payload.country || payload.is_items.length === 0) {
-    alert('Please fill client name, country, and at least one IS standard.');
-    return;
-  }
-  const resp = await fetch('/api/calculate', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(payload)
-  });
-  const data = await resp.json();
   const box = document.getElementById('resultBox');
   box.style.display = 'block';
+  lastQuotationPayload = null;
+  const data = await postJson('/api/calculate', payload);
   if (!data.ok) {
-    box.innerHTML = `<div class="badge bad">Error: ${data.error}</div>`;
+    box.innerHTML = `<div class="badge bad" style="white-space:normal;">${esc(data.error)}</div>`;
     return;
   }
   lastQuotationPayload = payload;
@@ -92,13 +104,22 @@ document.getElementById('calcBtn').addEventListener('click', async () => {
   rows += `<tr><td>PBG (not in total)</td><td>$${r.line_items.pbg_usd_each} each</td></tr>`;
   rows += `<tr><td>Consultancy Charges</td><td>$${r.line_items.consultancy_per_is.join(', ')}</td></tr>`;
 
+  const warnings = (r.warnings || []).map(w =>
+    `<div class="badge bad" style="display:block;margin-bottom:8px;white-space:normal;">&#9888; ${esc(w)}</div>`).join('');
+  const confirmBox = r.country_recognized ? '' : `
+    <label style="display:block;margin-top:12px;font-weight:600;">
+      <input type="checkbox" id="countryConfirm"> I checked: "${esc(payload.country)}" really is outside USA/Europe/Turkey, so the standard rate is correct.
+    </label>`;
+
   box.innerHTML = `
+    ${warnings}
     <div class="pill-row">
-      <span class="badge info">${r.bracket_label}</span>
+      <span class="badge info">${esc(r.bracket_label)}</span>
       <span class="badge neutral">Rate used: ₹${r.exchange_rate}/USD</span>
     </div>
     <table>${rows}</table>
-    <div class="total-line">Total (Excluding PBG): $${r.total_usd.toLocaleString()}</div>
+    <div class="total-line">Total (Excluding PBG): $${r.total_usd.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+    ${confirmBox}
     <div style="margin-top:16px; display:flex; gap:10px;">
       <button class="btn" id="saveBtn">Save Quotation</button>
     </div>
@@ -107,15 +128,17 @@ document.getElementById('calcBtn').addEventListener('click', async () => {
 });
 
 async function saveQuotation() {
-  const resp = await fetch('/api/save-quotation', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(lastQuotationPayload)
-  });
-  const data = await resp.json();
+  const confirmBox = document.getElementById('countryConfirm');
+  if (confirmBox && !confirmBox.checked) {
+    alert('The country is not recognised. Correct it, or tick the confirmation box, before saving.');
+    return;
+  }
+  const payload = Object.assign({}, lastQuotationPayload, {country_confirmed: !!(confirmBox && confirmBox.checked)});
+  const data = await postJson('/api/save-quotation', payload);
   if (data.ok) {
     window.location.href = `/quotations/${data.quotation_id}`;
   } else {
-    alert('Error saving: ' + data.error);
+    alert('Could not save: ' + data.error);
   }
 }
 
@@ -124,7 +147,7 @@ fetch('/api/countries').then(r => r.json()).then(countries => {
   const list = document.getElementById('countryList');
   countries.forEach(c => {
     const opt = document.createElement('option');
-    opt.value = c.replace(/\b\w/g, ch => ch.toUpperCase());
+    opt.value = c;
     list.appendChild(opt);
   });
 });
