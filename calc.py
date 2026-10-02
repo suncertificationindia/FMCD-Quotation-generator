@@ -23,8 +23,8 @@ DEFAULT_CONSULTANCY_USD_PER_IS = 5000
 class ISItem:
     is_number: str
     product_name: str = ""
-    sample_testing_usd: float = 0.0
-    min_marking_fee_usd: float = 0.0
+    sample_testing_usd: Optional[float] = None   # must be entered by the user
+    min_marking_fee_usd: Optional[float] = None  # must be entered by the user
     consultancy_usd: float = DEFAULT_CONSULTANCY_USD_PER_IS
     unit_price_inr: Optional[float] = None
     unit_size: Optional[str] = None
@@ -54,23 +54,29 @@ def calculate(q: QuotationInput) -> dict:
     if q.exchange_rate <= 0:
         raise ValueError("Exchange rate must be positive")
 
+    for i in q.is_items:
+        if i.sample_testing_usd is None or i.min_marking_fee_usd is None:
+            raise ValueError(f"Sample Testing and Minimum Marking Fee must be entered for IS {i.is_number}")
+
     bracket = classify_country(q.country)
     rate = q.exchange_rate
 
     md = man_days(n)
     pdd = per_diem_days(n)
 
-    application_fee_usd = APPLICATION_FEE_INR_PER_IS / rate
-    license_fee_usd = LICENSE_FEE_INR_PER_IS / rate
-    inspection_usd = (md * INSPECTION_INR_PER_MAN_DAY) / rate
-    travel_officer_usd = TRAVEL_OFFICER_INR[bracket] / rate
+    # Every line is rounded to 2 decimals first, and the total is the sum of
+    # those rounded amounts, so the total always equals what the client sees.
+    application_fee_usd = round(APPLICATION_FEE_INR_PER_IS / rate, 2)
+    license_fee_usd = round(LICENSE_FEE_INR_PER_IS / rate, 2)
+    inspection_usd = round((md * INSPECTION_INR_PER_MAN_DAY) / rate, 2)
+    travel_officer_usd = round(TRAVEL_OFFICER_INR[bracket] / rate, 2)
     per_diem_rate = PER_DIEM_USD_PER_DAY[bracket]
-    per_diem_usd = pdd * per_diem_rate
-    contingency_usd = CONTINGENCY_INR_FLAT / rate
+    per_diem_usd = round(pdd * per_diem_rate, 2)
+    contingency_usd = round(CONTINGENCY_INR_FLAT / rate, 2)
 
-    sample_testing_total = sum(i.sample_testing_usd for i in q.is_items)
-    min_marking_total = sum(i.min_marking_fee_usd for i in q.is_items)
-    consultancy_total = sum(i.consultancy_usd for i in q.is_items)
+    sample_testing = [round(i.sample_testing_usd, 2) for i in q.is_items]
+    min_marking = [round(i.min_marking_fee_usd, 2) for i in q.is_items]
+    consultancy = [round(i.consultancy_usd, 2) for i in q.is_items]
 
     total = (
         n * application_fee_usd
@@ -78,10 +84,10 @@ def calculate(q: QuotationInput) -> dict:
         + travel_officer_usd
         + per_diem_usd
         + contingency_usd
-        + sample_testing_total
-        + min_marking_total
+        + sum(sample_testing)
+        + sum(min_marking)
         + n * license_fee_usd
-        + consultancy_total
+        + sum(consultancy)
     )
 
     return {
@@ -93,16 +99,16 @@ def calculate(q: QuotationInput) -> dict:
         "per_diem_rate": per_diem_rate,
         "travel_officer_inr": TRAVEL_OFFICER_INR[bracket],
         "line_items": {
-            "application_fee_usd_each": round(application_fee_usd, 2),
-            "inspection_usd": round(inspection_usd, 2),
-            "travel_officer_usd": round(travel_officer_usd, 2),
-            "per_diem_usd": round(per_diem_usd, 2),
-            "contingency_usd": round(contingency_usd, 2),
-            "sample_testing_per_is": [round(i.sample_testing_usd, 2) for i in q.is_items],
-            "min_marking_per_is": [round(i.min_marking_fee_usd, 2) for i in q.is_items],
-            "license_fee_usd_each": round(license_fee_usd, 2),
+            "application_fee_usd_each": application_fee_usd,
+            "inspection_usd": inspection_usd,
+            "travel_officer_usd": travel_officer_usd,
+            "per_diem_usd": per_diem_usd,
+            "contingency_usd": contingency_usd,
+            "sample_testing_per_is": sample_testing,
+            "min_marking_per_is": min_marking,
+            "license_fee_usd_each": license_fee_usd,
             "pbg_usd_each": PBG_USD_FLAT_PER_IS,
-            "consultancy_per_is": [round(i.consultancy_usd, 2) for i in q.is_items],
+            "consultancy_per_is": consultancy,
         },
         "total_usd": round(total, 2),
     }

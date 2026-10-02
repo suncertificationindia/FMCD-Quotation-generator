@@ -37,30 +37,49 @@ plain-template summary instead of an AI-written one. All the pricing math and th
 line-by-line review checks are identical either way — the AI only affects language
 flexibility, not correctness.
 
-## Deploying so employees can access it online
+## How it is deployed today
 
-### Option A — Render (recommended, free tier available)
-1. Push this folder to a GitHub repo.
-2. In Render: New → Blueprint → point at the repo (it will read `render.yaml`
-   automatically), or New → Web Service if you prefer to configure manually:
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `gunicorn app:app --bind 0.0.0.0:$PORT`
-3. Add environment variable `ANTHROPIC_API_KEY` if you want AI-assisted parsing.
-4. Render gives you a public URL (e.g. `https://fmcs-quotation-suite.onrender.com`)
-   — share that with your employees.
-5. `render.yaml` already provisions a small persistent disk so the SQLite database
-   (clients/quotations) survives restarts and deploys.
+- Code: GitHub repo `suncertificationindia/FMCD-Quotation-generator` (branch `main`, files at the repo root).
+- Hosting: Render, **free plan**, set up from `render.yaml` (Blueprint).
+  Live address: https://fmcs-quotation-suite.onrender.com
+- Changes go live automatically: when files on GitHub are changed and committed, Render redeploys in about a minute.
+- Environment variables set in Render:
+  - `APP_PASSWORD` - the shared staff password (set by Sun Consultants).
+  - `SECRET_KEY` - generated automatically.
+  - `ANTHROPIC_API_KEY` - optional, not set at present.
 
-### Option B — Railway / Fly.io / any Python host
-Same idea: install `requirements.txt`, run `gunicorn app:app --bind 0.0.0.0:$PORT`,
-set `DATABASE_PATH` to a path on a persistent volume if the platform offers one
-(otherwise the SQLite file resets on redeploy — fine for testing, not for production
-data).
+### Free plan limits (important)
+- The site goes to sleep when nobody uses it; the first page load afterwards takes about a minute.
+- The SQLite database (saved quotations and clients) **resets on every restart or redeploy**.
+  Excel downloads are not affected, so download the .xlsx you need straight after creating it.
+- To keep saved data permanently, switch the Render service to a paid plan, add a persistent
+  disk mounted at `/var/data`, and set the environment variable
+  `DATABASE_PATH=/var/data/data.sqlite3`.
 
-### Authentication
-This build has no login screen — anyone with the URL can use it. Before sharing
-broadly, put it behind your host's basic-auth / access-control feature, or ask and
-I'll add a simple login.
+### Login
+There is one shared password, stored in the `APP_PASSWORD` environment variable. Anyone who knows
+it can use the app. **If `APP_PASSWORD` is not set, the app has no login at all** - always keep it
+set on Render. There is currently no limit on wrong-password attempts.
+
+### Other hosts
+Any Python host works: install `requirements.txt` and run
+`gunicorn app:app --bind 0.0.0.0:$PORT`. Set `DATABASE_PATH` to a path on a persistent volume if
+the platform offers one.
+
+## Checks built into the tool
+
+- Sample Testing and Minimum Marking Fee must be typed for every IS (0 is accepted only if typed).
+  Negative amounts are rejected; consultancy left blank means 5,000, a typed 0 stays 0.
+- A country that is not in the built-in list (see `countries.py`) triggers a warning and must be
+  confirmed before saving. It is priced at the standard rate until corrected.
+- Duplicate IS numbers give a warning.
+- Every amount on the quotation is rounded to cents first and the total is the sum of those
+  rounded amounts.
+- Optional marking-fee reference table (unit price, unit size, annual production) is printed in the
+  Excel file only when at least one of those fields is filled in.
+- Review reads the exchange rate and country from the uploaded file. The rate box is only used when
+  the file does not show an "Exchange rate used" line. Amounts must match within the larger of
+  $1 or 0.5%.
 
 ## Business rules encoded (for reference — see calc.py)
 

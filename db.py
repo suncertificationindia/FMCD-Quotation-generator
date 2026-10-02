@@ -71,11 +71,16 @@ def create_client(name, country, email="", phone="", notes=""):
 
 
 def get_or_create_client(name, country):
+    """Find the client by name (case-insensitive); keep its country up to date."""
+    name = (name or "").strip()
     conn = get_conn()
     row = conn.execute(
         "SELECT * FROM clients WHERE lower(name) = lower(?)", (name,)
     ).fetchone()
     if row:
+        if row["country"] != country:
+            conn.execute("UPDATE clients SET country = ? WHERE id = ?", (country, row["id"]))
+            conn.commit()
         conn.close()
         return row["id"]
     conn.close()

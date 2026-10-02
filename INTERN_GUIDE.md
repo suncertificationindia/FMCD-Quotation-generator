@@ -1,37 +1,38 @@
 # Deploying the Quotation Suite (guide for the interns)
 
-This is a small Flask app (Python 3.9+, SQLite). Goal: put it online so Sun Consultants staff can open
-one URL, sign in with a shared password, create quotations and download .xlsx files.
-No Claude accounts are needed by staff.
+This is a small Flask app (Python 3.9+, SQLite). Staff open one URL, sign in with a shared password,
+create quotations and download .xlsx files. No Claude accounts are needed by staff.
 
-## 1. Run it locally first (5 minutes)
-```bash
-cd app
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-APP_PASSWORD=test123 python3 app.py      # opens on http://localhost:5050
-```
-Check: login works, Generate -> Calculate -> Save -> Download .xlsx works, Review tab accepts an .xlsx.
+## Current setup (already live - do not redo)
+- GitHub repo: `suncertificationindia/FMCD-Quotation-generator`, branch `main`, files at the repo root.
+- Render **free plan**, created from `render.yaml` (Blueprint). URL: https://fmcs-quotation-suite.onrender.com
+- Environment variables on Render: `APP_PASSWORD` (shared staff password, set by Sun Consultants) and
+  `SECRET_KEY` (generated automatically). `ANTHROPIC_API_KEY` is optional and not set.
+- Any change committed to `main` on GitHub redeploys automatically in about 1 minute.
 
-## 2. Push to GitHub
-Create a **private** repo and push the contents of the `app/` folder as the repo root
-(so `app.py`, `requirements.txt`, `render.yaml` sit at the top level). `.gitignore` already
-excludes the database and venv.
+## How to put a change live
+1. Open the repo on GitHub, click the file (or drag new files onto the repo page).
+2. Replace the content or upload the new file, then **Commit changes** to `main`.
+3. In Render, open the service and wait until Events shows the deploy as Live (about 1 minute).
+4. Open the site, sign in and run the checks below.
 
-## 3. Deploy on Render
-1. render.com -> New -> Blueprint -> pick the repo (it reads `render.yaml`).
-2. When prompted, set **APP_PASSWORD** (the shared staff password). `SECRET_KEY` is generated automatically.
-   `ANTHROPIC_API_KEY` is optional - leave empty to use the rule-based parser (all pricing math is identical).
-3. Plan: `render.yaml` uses a paid plan because saved quotations live in SQLite on a persistent disk
-   (`/var/data`). On the free plan there is no disk, so data resets on every deploy/restart -
-   fine only for testing (see the comment inside `render.yaml`).
-4. Open the Render URL, sign in, and run the same checks as step 1.
+## Checks after every deploy
+- Wrong password is refused; correct password signs in.
+- Generate: enter client, country, one IS with Sample Testing and Minimum Marking Fee -> Calculate -> Save -> Download .xlsx.
+  Reference example: IS 18297, Vietnam, rate 90.91, testing 268, marking 1930, consultancy 6000 -> total 11,891.98 USD.
+- Review: upload the downloaded .xlsx; every line should say ok.
 
-## 4. Things to know
-- Auth is one shared password (env var `APP_PASSWORD`). If it is unset the app has NO login - never deploy that way.
-- The exchange rate is fetched live from free public APIs; if they fail the form falls back to 91 and the
-  user can type the rate manually.
+## Free plan limits
+- The site sleeps when idle; the first load takes about a minute.
+- Saved quotations and clients (SQLite) are **erased on every restart or redeploy**. Downloads are not affected.
+- To keep data: paid plan + persistent disk mounted at `/var/data` + environment variable
+  `DATABASE_PATH=/var/data/data.sqlite3`. Then back up `/var/data/data.sqlite3` from time to time.
+
+## Things to know
+- If `APP_PASSWORD` is unset the app has NO login - never leave it unset on Render.
+- The exchange rate comes from free public APIs; if they fail the form shows a fallback of 91 and the user can type the rate.
 - All pricing rules live in `calc.py` (one place). Do not change them without re-checking against real quotations.
-  Country brackets are in `countries.py`.
-- Backups: download `/var/data/data.sqlite3` from the Render shell periodically.
-- Sample Testing / Minimum Marking Fee are always entered by the user per IS - by design.
+  Country lists are in `countries.py`.
+- Sample Testing / Minimum Marking Fee are always typed by the user per IS - by design.
+- Running locally (optional): `pip install -r requirements.txt`, then `APP_PASSWORD=test123 python3 app.py`
+  and open http://localhost:5050

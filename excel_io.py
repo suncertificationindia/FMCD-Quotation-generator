@@ -6,7 +6,8 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
-from calc import calculate, QuotationInput, ISItem
+from calc import calculate, QuotationInput, ISItem, DEFAULT_CONSULTANCY_USD_PER_IS
+from countries import is_known_country
 
 HEADER_FILL = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
 HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -115,7 +116,9 @@ def build_workbook(q: QuotationInput) -> Workbook:
         li["sample_testing_per_is"],
         "Stage-3 -  After completion of audit", bis_paid,
     )
-    write_row("Minimum Marking Fee / Year *", li["min_marking_per_is"], "", bis_paid)
+    has_marking_ref = any(i.unit_price_inr or i.unit_size or i.annual_production for i in q.is_items)
+    write_row("Minimum Marking Fee / Year" + (" *" if has_marking_ref else ""),
+               li["min_marking_per_is"], "", bis_paid)
     write_row("License Fee", [round(li["license_fee_usd_each"], 2)] * n,
                "", bis_paid)
     write_row("Performance Bank Guarantee ( PBG/licence )", [li["pbg_usd_each"]] * n,
@@ -129,13 +132,17 @@ def build_workbook(q: QuotationInput) -> Workbook:
         "Sun Consultants",
     )
 
-    ws.cell(row=row, column=2, value="Total (Excluding PBG)").font = BOLD
-    ws.cell(row=row, column=3, value=result["total_usd"]).font = BOLD
-    ws.cell(row=row, column=3).number_format = "#,##0.00"
+    ws.cell(row=row, column=1, value=sno).alignment = CENTER
+    ws.cell(row=row, column=2, value="Total (Excluding PBG)").alignment = LEFT_WRAP
+    total_cell = ws.cell(row=row, column=3, value=result["total_usd"])
+    total_cell.alignment = CENTER
+    total_cell.number_format = "#,##0.00"
+    for col in range(1, total_cols + 1):
+        ws.cell(row=row, column=col).border = BORDER
+        ws.cell(row=row, column=col).font = BOLD
     row += 2
 
     # Marking fee reference table (optional section)
-    has_marking_ref = any(i.unit_price_inr for i in q.is_items)
     if has_marking_ref:
         ws.cell(row=row, column=2, value="* Marking Fee ( Per Unit Price )").font = BOLD
         row += 1
@@ -145,7 +152,11 @@ def build_workbook(q: QuotationInput) -> Workbook:
         for it in q.is_items:
             ws.cell(row=row, column=2, value=it.is_number)
             ws.cell(row=row, column=3, value=it.product_name)
-            ws.cell(row=row, column=4, value=f"INR {it.unit_price_inr}/unit {it.unit_size or ''}")
+            if it.unit_price_inr:
+                price = f"INR {it.unit_price_inr:g}"
+                ws.cell(row=row, column=4, value=f"{price} per {it.unit_size}" if it.unit_size else price)
+            else:
+                ws.cell(row=row, column=4, value=it.unit_size or "")
             ws.cell(row=row, column=5, value=it.annual_production or "")
             row += 1
         row += 1
@@ -217,8 +228,12 @@ def _to_number(val):
 
 def parse_uploaded_quotation(file_stream) -> dict:
     """Best-effort extraction of an uploaded quotation's structure and values."""
-    wb = load_workbook(file_stream, data_only=True)
-    ws = wb.active
+    try:
+        wb = load_workbook(file_stream, data_only=True)
+        ws = wb.active
+    except Exception:
+        raise ValueError("This is not a valid .xlsx Excel file. Please upload the quotation saved as .xlsx "
+                         "(older .xls files and renamed files do not work).")
 
     all_text = []
     for row in ws.iter_rows():
@@ -290,6 +305,15 @@ def parse_uploaded_quotation(file_stream) -> dict:
                     findings["rows"][key] = {"label": desc_cell.value, "values": values}
                     break
 
+    # Exchange rate printed on the quotation: "Exchange rate used: 1 USD = INR 90.91"
+    rate_line = re.search(r"exchange rate[^0-9\n]*?1\s*USD\s*=\s*(?:INR|Rs\.?|\u20b9)?\s*([0-9][0-9,]*\.?[0-9]*)",
+                          full_text, re.I)
+    if rate_line:
+        try:
+            findings["file_exchange_rate"] = float(rate_line.group(1).replace(",", ""))
+        except ValueError:
+            pass
+
     # Try to recover exchange rate context from notes
     rate_note = re.search(r"for\s+([a-zA-Z ]+?)[,]?\s+according to our previous audits it was\s+(\d+)\s*usd/day", full_text, re.I)
     if rate_note:
@@ -312,9 +336,10 @@ def diff_against_expected(parsed: dict, country: str, exchange_rate: float) -> l
     for i in range(n):
         is_items.append(ISItem(
             is_number=parsed["is_numbers"][i] if i < len(parsed.get("is_numbers", [])) else f"#{i+1}",
-            sample_testing_usd=sample_vals[i] if i < len(sample_vals) and sample_vals[i] else 0,
-            min_marking_fee_usd=marking_vals[i] if i < len(marking_vals) and marking_vals[i] else 0,
-            consultancy_usd=consultancy_vals[i] if i < len(consultancy_vals) and consultancy_vals[i] else 5000,
+            sample_testing_usd=(sample_vals[i] if i < len(sample_vals) else None) or 0,
+            min_marking_fee_usd=(marking_vals[i] if i < len(marking_vals) else None) or 0,
+            consultancy_usd=(consultancy_vals[i] if i < len(consultancy_vals) and consultancy_vals[i] is not None
+                             else DEFAULT_CONSULTANCY_USD_PER_IS),
         ))
 
     q = QuotationInput(client_name="uploaded", country=country, exchange_rate=exchange_rate, is_items=is_items)
@@ -323,7 +348,12 @@ def diff_against_expected(parsed: dict, country: str, exchange_rate: float) -> l
 
     checks = []
 
-    def cmp_single(key, expected_val, label, tolerance_pct=0.03):
+    if not is_known_country(country):
+        checks.append({"item": "Country", "status": "warning",
+                        "note": f"Country '{country}' is not recognised - it was treated as the standard "
+                                f"bracket (USD 300/day, INR 2,00,000 travel). Check the spelling."})
+
+    def cmp_single(key, expected_val, label, tolerance_pct=0.005):
         actual_list = rows.get(key, {}).get("values", [])
         actual = next((v for v in actual_list if v is not None), None)
         if actual is None:
@@ -335,7 +365,7 @@ def diff_against_expected(parsed: dict, country: str, exchange_rate: float) -> l
         else:
             checks.append({"item": label, "status": "ok", "expected": round(expected_val, 2), "found": actual})
 
-    def cmp_sum(key, expected_val, label, tolerance_pct=0.03):
+    def cmp_sum(key, expected_val, label, tolerance_pct=0.005):
         vals = [v for v in rows.get(key, {}).get("values", []) if v is not None]
         if not vals:
             checks.append({"item": label, "status": "missing", "expected": round(expected_val, 2), "found": None})

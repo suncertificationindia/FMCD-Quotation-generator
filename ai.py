@@ -9,6 +9,8 @@ import os
 import re
 import json
 
+from countries import is_known_country
+
 API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 
 
@@ -28,22 +30,74 @@ def ai_available() -> bool:
 
 # ---------------- Command parsing ----------------
 
+_IS_RUN = re.compile(
+    r"\bIS\s*[:\-.]?\s*\d{4,6}(?:\s*(?:,|&|/|\band\b)\s*(?:IS\s*[:\-.]?\s*)?\d{4,6})*", re.I)
+_COUNTRY_PREP = re.compile(
+    r"\b(?:based\s+in|located\s+in|country\s*[:\-]?|from|in)\s+(?:the\s+)?"
+    r"([^\W\d_][\w.'\- ]{1,40}?)(?=\s*[,;()]|\s+(?:for|with|IS)\b|\s*$)", re.I)
+
+
+def _nice_case(text: str) -> str:
+    """Tidy capitalisation only when the user typed everything in lower case."""
+    if text and text == text.lower():
+        return text.upper() if len(text) <= 3 else text.title()
+    return text
+
+
 def parse_command_regex(text: str) -> dict:
-    is_numbers = re.findall(r"IS\s*[- ]?(\d{4,6})", text, re.I)
-    seen = set()
-    is_numbers = [x for x in is_numbers if not (x in seen or seen.add(x))]
+    text = " ".join((text or "").split())
 
+    # IS numbers: "IS 17632", "IS:17632", "IS 17632, 17633 and IS 17634"
+    is_numbers = []
+    for run in _IS_RUN.finditer(text):
+        for num in re.findall(r"\d{4,6}", run.group(0)):
+            if num not in is_numbers:
+                is_numbers.append(num)
+
+    # Country: prefer a phrase after in/from whose text is a known country.
     country = None
-    m = re.search(r"(?:from|in|country[:\s]+)\s+([A-Za-z][A-Za-z .]{2,30}?)(?=[,.]|\s+for\b|\s+with\b|$)", text, re.I)
-    if m:
-        country = m.group(1).strip()
+    country_start = None
+    fallback = None
+    for m in _COUNTRY_PREP.finditer(text):
+        name = m.group(1).strip(" .")
+        if is_known_country(name):
+            country, country_start = name, m.start()
+            break
+        if fallback is None:
+            fallback = (name, m.start())
+    if country is None:
+        for m in re.finditer(r"\(([A-Za-z.' \-]{2,40})\)", text):   # "Beta Corp (Turkey)"
+            if is_known_country(m.group(1)):
+                country, country_start = m.group(1).strip(), m.start()
+                break
+    if country is None:
+        for seg in re.finditer(r"[^,;()]+", text):                    # "Acme Corp, Germany, IS 17632"
+            if is_known_country(seg.group(0).strip(" .")):
+                country, country_start = seg.group(0).strip(" ."), seg.start()
+                break
+    if country is None and fallback:
+        country, country_start = fallback
 
+    # Client: text after "for" / "client", up to the country, a comma, "for", "with" or the IS list.
     client_name = None
-    m = re.search(r"(?:for|client)\s+([A-Z][A-Za-z0-9&.,'\- ]{2,50}?)(?:,|\s+(?:for|from|in)\s|$)", text)
+    m = re.search(r"\b(?:for|client\s*[:\-]?)\s+(?!IS\b)(.+)", text, re.I)
     if m:
-        client_name = m.group(1).strip().rstrip(",")
+        rest = m.group(1)
+        offset = m.start(1)
+        cuts = [len(rest)]
+        if country_start is not None and country_start >= offset:
+            cuts.append(country_start - offset)
+        for pat in (r",", r"\(", r"\s+(?:for|with)\s", r"\bIS\s*[:\-.]?\s*\d"):
+            c = re.search(pat, rest, re.I)
+            if c:
+                cuts.append(c.start())
+        name = rest[:min(cuts)].strip(" ,.-")
+        if name:
+            client_name = _nice_case(name)
 
-    return {"client_name": client_name, "country": country, "is_numbers": is_numbers}
+    return {"client_name": client_name,
+            "country": _nice_case(country) if country else None,
+            "is_numbers": is_numbers}
 
 
 def parse_command_ai(text: str) -> dict:
