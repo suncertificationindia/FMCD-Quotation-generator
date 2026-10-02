@@ -2,10 +2,7 @@ services:
   - type: web
     name: fmcs-quotation-suite
     runtime: python
-    # A persistent disk (needed so saved quotations survive redeploys) requires a paid plan.
-    # For a throwaway test on the free plan: set `plan: free` and delete the `disk:` block
-    # and the DATABASE_PATH variable (data will reset on every deploy/restart).
-    plan: starter
+    plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT"
     envVars:
@@ -13,11 +10,5 @@ services:
         generateValue: true
       - key: APP_PASSWORD
         sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: DATABASE_PATH
-        value: /var/data/data.sqlite3
-    disk:
-      name: data
-      mountPath: /var/data
-      sizeGB: 1
+      - key: PYTHON_VERSION
+        value: 3.11.9
