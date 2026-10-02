@@ -61,21 +61,36 @@
       </div>
       <div class="field">
         <label>Consultancy Charge (USD)</label>
-        <input type="number" class="is-consultancy" value="{{ default_consultancy }}">
+        <input type="number" class="is-consultancy" min="0" step="any" value="{{ default_consultancy }}">
       </div>
     </div>
     <div class="row">
       <div class="field">
         <label>Sample Testing Charge (USD)</label>
-        <input type="number" class="is-testing" placeholder="check external lab site">
+        <input type="number" class="is-testing" min="0" step="any" placeholder="required - check external lab site">
       </div>
       <div class="field">
         <label>Minimum Marking Fee / Year (USD)</label>
-        <input type="number" class="is-marking" placeholder="enter value">
+        <input type="number" class="is-marking" min="0" step="any" placeholder="required">
       </div>
       <div class="field">
         <label>&nbsp;</label>
         <button class="btn secondary remove-is" type="button" style="width:100%;">Remove</button>
+      </div>
+    </div>
+    <div class="muted" style="margin:4px 0 6px;">Optional - fill these to print the "Marking Fee (Per Unit Price)" table in the Excel file. Leave empty to leave it out.</div>
+    <div class="row">
+      <div class="field">
+        <label>Marking Fee Unit Price (INR)</label>
+        <input type="number" class="is-unit-price" min="0" step="any">
+      </div>
+      <div class="field">
+        <label>Unit Size</label>
+        <input type="text" class="is-unit-size" placeholder="e.g. 1 pc, 100 pcs">
+      </div>
+      <div class="field">
+        <label>Per Year Production</label>
+        <input type="text" class="is-production" placeholder="e.g. 50,000 pcs">
       </div>
     </div>
   </div>
