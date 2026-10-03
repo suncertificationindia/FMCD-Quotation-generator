@@ -58,6 +58,14 @@ document.getElementById('fetchBtn').addEventListener('click', async () => {
   cards.forEach(card => {
     const n = data.fmcs[card.dataset.number];
     if (n !== undefined) card.querySelector('.std-fmcs').value = n;
+    const title = (data.manuals || {})[card.dataset.number];
+    const status = card.querySelector('.manual-status');
+    if (title) {
+      status.innerHTML = badge('ok', 'Product manual found on the BIS website: ' + title);
+    } else {
+      status.innerHTML = badge('bad', 'No product manual for this standard was found on the BIS website. Add the file below.');
+      card.querySelector('.manual-details').open = true;
+    }
   });
   if (data.labs.length) document.getElementById('labs').value = data.labs.join('\n');
   document.getElementById('labsEtc').checked = !!data.more;
@@ -75,6 +83,8 @@ async function build(mode) {
     if (file) fd.append('std_' + i, file);
     const img = card.querySelector('.std-scope-img').files[0];
     if (img) fd.append('scope_img_' + i, img);
+    const manual = card.querySelector('.std-manual').files[0];
+    if (manual) fd.append('manual_' + i, manual);
     fd.append('year_' + i, card.querySelector('.std-year').value.trim());
     fd.append('desc_' + i, card.querySelector('.std-desc').value.trim());
     fd.append('date_' + i, card.querySelector('.std-date').value);
