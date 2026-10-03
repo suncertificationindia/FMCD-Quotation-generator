@@ -33,7 +33,7 @@
   <h2>Document pack for the client</h2>
   <table>
     <tr><td>1. Quotation (.xlsx)</td><td><span class="badge ok">in the zip</span></td></tr>
-    <tr><td>2. Product manual(s)</td><td><span class="badge warn">add by hand for now</span></td></tr>
+    <tr><td>2. Product manual(s)</td><td><span class="badge info">on the next page (downloaded automatically)</span></td></tr>
     <tr><td>3. Copy of the BIS standard(s)</td><td><span class="badge info">on the next page</span></td></tr>
     <tr><td>4. About Company (PDF, client list matched to this quotation)</td><td><span class="badge ok">in the zip</span></td></tr>
     <tr><td>5. About BIS</td><td><span class="badge info">on the next page</span></td></tr>
@@ -42,7 +42,6 @@
   </table>
   <div style="margin-top:16px;">
     <a class="btn" href="{{ url_for('about_bis_page', qid=q.id) }}">Next: add the standards and About BIS &rarr;</a>
-    <a class="btn secondary" href="{{ url_for('download_pack', qid=q.id) }}">Download the basic pack (.zip)</a>
   </div>
   <h2 style="margin-top:24px;">Clients that will be listed in the About Company PDF</h2>
   <div class="muted" style="margin-bottom:8px;">Product: <b>{{ meta.get('product') or 'not saved' }}</b> &middot; Industry: <b>{{ meta.get('industry') or 'not saved' }}</b> &middot; Country: <b>{{ q.country }}</b>. Rule: same product first, then industry, then country, then continent.</div>

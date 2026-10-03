@@ -29,9 +29,14 @@
         <div class="field"><label>&nbsp;</label></div>
       </div>
       <div class="std-preview"></div>
-      <details style="margin-top:8px;">
+      <details style="margin-top:8px;" class="scope-details">
         <summary class="muted">The Scope was not found? Upload a picture of it instead</summary>
         <div class="field" style="margin-top:8px;"><input type="file" class="std-scope-img" accept="image/png,image/jpeg"></div>
+      </details>
+      <div class="manual-status" style="margin-top:8px;"></div>
+      <details class="manual-details" style="margin-top:4px;">
+        <summary class="muted">Product manual: downloaded automatically from BIS. Add your own file only if BIS does not have one</summary>
+        <div class="field" style="margin-top:8px;"><input type="file" class="std-manual" accept="application/pdf,.pdf"></div>
       </details>
     </div>
     {% endfor %}
@@ -56,7 +61,7 @@
       <button class="btn" id="packBtn" type="button">Download full document pack (.zip)</button>
       <button class="btn secondary" id="pdfBtn" type="button">Download only the About BIS PDF</button>
     </div>
-    <div class="muted" style="margin-top:10px;">The full pack contains the quotation, the standards, About Company, About BIS, the application form and the checklist. Product manuals are still added by hand.</div>
+    <div class="muted" style="margin-top:10px;">The full pack contains all seven documents: the quotation, the product manuals (downloaded automatically from BIS), the standards, About Company, About BIS, the application form and the checklist.</div>
   </div>
 </form>
 
