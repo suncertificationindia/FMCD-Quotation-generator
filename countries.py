@@ -86,3 +86,76 @@ def is_known_country(country: str) -> bool:
 def classify_country(country: str) -> str:
     """Returns 'A' (USA/Europe/Turkey higher bracket) or 'B' (everyone else)."""
     return "A" if normalize_country(country) in BRACKET_A_COUNTRIES else "B"
+
+
+# ---------------- Aliases and continents (used to rank the client list) ----------------
+
+_ALIASES = {
+    "usa": "united states", "us": "united states", "united states of america": "united states",
+    "america": "united states",
+    "uk": "united kingdom", "great britain": "united kingdom", "britain": "united kingdom",
+    "england": "united kingdom", "scotland": "united kingdom", "wales": "united kingdom",
+    "northern ireland": "united kingdom",
+    "turkiye": "turkey", "czech republic": "czechia", "czech": "czechia",
+    "republic of ireland": "ireland", "holland": "netherlands",
+    "uae": "united arab emirates", "korea": "south korea", "republic of korea": "south korea",
+    "viet nam": "vietnam", "russian federation": "russia", "burma": "myanmar",
+    "prc": "china", "peoples republic of china": "china", "macao": "macau",
+    "swaziland": "eswatini", "bosnia": "bosnia and herzegovina",
+    "eu": "europe", "european union": "europe",
+}
+
+
+def country_key(country: str) -> str:
+    """One standard spelling per country, so 'USA' and 'United States' compare equal."""
+    n = normalize_country(country)
+    return _ALIASES.get(n, n)
+
+
+def _keys(names):
+    return {normalize_country(n) for n in names}
+
+
+_EUROPE = _keys([
+    "United Kingdom", "Switzerland", "Norway", "Turkey", "Europe", "Austria", "Belgium", "Bulgaria",
+    "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece",
+    "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands",
+    "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Spain", "Sweden", "Iceland",
+    "Liechtenstein", "Monaco", "Andorra", "Albania", "Belarus", "Bosnia and Herzegovina", "Kosovo",
+    "Moldova", "Montenegro", "North Macedonia", "Serbia", "Ukraine",
+])
+_AMERICA = _keys([
+    "United States", "Canada", "Mexico", "Argentina", "Bahamas", "Barbados", "Belize", "Bolivia",
+    "Brazil", "Chile", "Colombia", "Costa Rica", "Cuba", "Dominican Republic", "Ecuador",
+    "El Salvador", "Guatemala", "Guyana", "Haiti", "Honduras", "Jamaica", "Nicaragua", "Panama",
+    "Paraguay", "Peru", "Suriname", "Trinidad and Tobago", "Uruguay", "Venezuela",
+])
+_AFRICA = _keys([
+    "Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", "Cape Verde",
+    "Central African Republic", "Chad", "Comoros", "Congo", "Cote d'Ivoire",
+    "Democratic Republic of the Congo", "Djibouti", "Egypt", "Eritrea", "Eswatini", "Ethiopia",
+    "Gabon", "Gambia", "Ghana", "Guinea", "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar",
+    "Malawi", "Mali", "Mauritania", "Mauritius", "Morocco", "Mozambique", "Namibia", "Niger",
+    "Nigeria", "Rwanda", "Senegal", "Sierra Leone", "Somalia", "South Africa", "South Sudan",
+    "Sudan", "Tanzania", "Togo", "Tunisia", "Uganda", "Zambia", "Zimbabwe",
+])
+_OCEANIA = _keys(["Australia", "New Zealand", "Fiji", "Papua New Guinea"])
+
+
+def continent_of(country: str):
+    """Asia / Europe / America / Africa / Oceania, or None if the country is not recognised.
+
+    Follows the convention of the client list: Turkey counts as Europe, Russia as Asia.
+    """
+    key = country_key(country)
+    if key not in KNOWN_COUNTRIES and key not in _EUROPE:
+        return None
+    if key in _EUROPE:
+        return "Europe"
+    if key in _AMERICA:
+        return "America"
+    if key in _AFRICA:
+        return "Africa"
+    if key in _OCEANIA:
+        return "Oceania"
+    return "Asia"

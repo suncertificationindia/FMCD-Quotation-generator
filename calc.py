@@ -37,6 +37,8 @@ class QuotationInput:
     country: str
     exchange_rate: float  # INR per 1 USD
     is_items: List[ISItem] = field(default_factory=list)
+    product: str = ""   # used only to choose the clients shown in the document pack
+    industry: str = ""
 
 
 def man_days(n):

@@ -12,6 +12,8 @@ from countries import is_known_country, COUNTRY_SUGGESTIONS
 from currency import get_live_inr_per_usd
 from excel_io import build_workbook, workbook_to_bytes, parse_uploaded_quotation, diff_against_expected
 import ai
+import clients as client_list
+from pack import build_pack, safe_name
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
@@ -64,7 +66,7 @@ def dashboard():
 @app.route("/generate")
 def generate_page():
     rate_info = get_live_inr_per_usd()
-    return render_template("generate.html", rate_info=rate_info,
+    return render_template("generate.html", rate_info=rate_info, industries=client_list.industries(),
                             default_consultancy=DEFAULT_CONSULTANCY_USD_PER_IS,
                             ai_on=ai.ai_available())
 
@@ -118,6 +120,13 @@ def build_input(data, strict=True):
     rate = _num(data.get("exchange_rate"), "Exchange rate", required=True)
     if rate <= 0:
         raise ValueError("Exchange rate must be greater than zero.")
+    product = _text(data.get("product"))
+    industry = _text(data.get("industry"))
+    if strict and not product:
+        raise ValueError("Product is required (for example: Hinges, Chairs, Toughened glass). "
+                         "It decides which clients appear in the About Company PDF.")
+    if strict and not industry:
+        raise ValueError("Please choose the industry (choose Other if none fits).")
     raw_items = data.get("is_items") or []
     if not raw_items:
         raise ValueError("Add at least one IS standard.")
@@ -144,7 +153,8 @@ def build_input(data, strict=True):
             unit_size=_text(raw.get("unit_size")) or None,
             annual_production=_text(raw.get("annual_production")) or None,
         ))
-    q = QuotationInput(client_name=client_name, country=country, exchange_rate=rate, is_items=items)
+    q = QuotationInput(client_name=client_name, country=country, exchange_rate=rate, is_items=items,
+                       product=product, industry=industry)
     if not is_known_country(country):
         warnings.append(f"Country '{country}' is not recognised. It is priced at the standard rate "
                         f"(USD 300/day, INR 2,00,000 travel). Check the spelling.")
@@ -186,6 +196,7 @@ def api_save_quotation():
             raise ValueError(f"Country '{q.country}' is not recognised. Tick the confirmation box "
                              f"or correct the country before saving.")
         result = calculate(q)
+        result["meta"] = {"product": q.product, "industry": q.industry}
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
     client_id = db.get_or_create_client(q.client_name, q.country)
@@ -206,7 +217,9 @@ def view_quotation(qid):
     q = db.get_quotation(qid)
     if not q:
         return "Not found", 404
-    return render_template("quotation_view.html", q=q)
+    meta = q["result"].get("meta") or {}
+    ranked = client_list.rank_clients(meta.get("product", ""), meta.get("industry", ""), q["country"])
+    return render_template("quotation_view.html", q=q, meta=meta, ranked=ranked)
 
 
 @app.route("/quotations/<int:qid>/download")
@@ -223,6 +236,23 @@ def download_quotation(qid):
     filename = f"Quotation - {q['client_name']}.xlsx"
     return send_file(io.BytesIO(data), as_attachment=True, download_name=filename,
                       mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@app.route("/quotations/<int:qid>/pack")
+def download_pack(qid):
+    q = db.get_quotation(qid)
+    if not q:
+        return "Not found", 404
+    try:
+        qi, _warnings = build_input(q, strict=False)
+    except ValueError as e:
+        return f"This saved quotation cannot be downloaded: {e}", 400
+    meta = q["result"].get("meta") or {}
+    qi.product, qi.industry = meta.get("product", ""), meta.get("industry", "")
+    data, _ranked = build_pack(qi, qi.product, qi.industry)
+    return send_file(io.BytesIO(data), as_attachment=True,
+                     download_name=f"Document pack - {safe_name(q['client_name'])}.zip",
+                     mimetype="application/zip")
 
 
 @app.route("/quotations")
