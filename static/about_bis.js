@@ -6,7 +6,38 @@ const cards = Array.from(document.querySelectorAll('.std-card'));
 const badge = (cls, text) => `<div class="badge ${cls}" style="display:block;margin-bottom:6px;white-space:normal;">${esc(text)}</div>`;
 
 cards.forEach(card => {
+  const upload = card.querySelector('.std-upload');
+  const scopeDetails = card.querySelector('.scope-details');
   const fileInput = card.querySelector('.std-file');
+  card.querySelectorAll('.std-have').forEach(radio => radio.addEventListener('change', async () => {
+    const msg = card.querySelector('.std-msg');
+    const preview = card.querySelector('.std-preview');
+    preview.innerHTML = '';
+    if (radio.value === 'yes') {
+      upload.style.display = 'block'; scopeDetails.style.display = 'block';
+      msg.innerHTML = fileInput.files.length ? msg.innerHTML : '';
+      return;
+    }
+    upload.style.display = 'none'; scopeDetails.style.display = 'none';
+    fileInput.value = ''; card.querySelector('.std-scope-img').value = '';
+    msg.innerHTML = '<span class="muted">Looking up the year and name on the BIS website...</span>';
+    let data;
+    try {
+      const resp = await fetch('/api/standard-meta?is=' + encodeURIComponent(card.dataset.number));
+      data = await resp.json();
+    } catch (e) {
+      data = {ok: false, error: 'The BIS website could not be reached. Please type the year and name.'};
+    }
+    let html = badge('info', 'Standard not available: it will not appear on the Scope slide or in the standards zip.');
+    if (data.ok) {
+      if (data.year) card.querySelector('.std-year').value = data.year;
+      if (data.description) card.querySelector('.std-desc').value = data.description;
+    } else {
+      html += badge('bad', data.error);
+    }
+    msg.innerHTML = html;
+  }));
+
   fileInput.addEventListener('change', async () => {
     const msg = card.querySelector('.std-msg');
     const preview = card.querySelector('.std-preview');
@@ -79,10 +110,14 @@ async function build(mode) {
   fd.append('mode', mode);
   fd.append('count', cards.length);
   cards.forEach((card, i) => {
+    const answer = card.querySelector('.std-have:checked');
+    fd.append('have_' + i, answer ? answer.value : '');
     const file = card.querySelector('.std-file').files[0];
-    if (file) fd.append('std_' + i, file);
-    const img = card.querySelector('.std-scope-img').files[0];
-    if (img) fd.append('scope_img_' + i, img);
+    if (answer && answer.value === 'yes') {
+      if (file) fd.append('std_' + i, file);
+      const img = card.querySelector('.std-scope-img').files[0];
+      if (img) fd.append('scope_img_' + i, img);
+    }
     const manual = card.querySelector('.std-manual').files[0];
     if (manual) fd.append('manual_' + i, manual);
     fd.append('year_' + i, card.querySelector('.std-year').value.trim());
