@@ -65,6 +65,15 @@ def build_about_company_pdf(ranked_clients):
     return out
 
 
+def make_zip(files, compress=False):
+    """Zip of [(file name, bytes)]. PDFs are already compressed, so the inner zips just store them."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED if compress else zipfile.ZIP_STORED) as z:
+        for filename, data in files:
+            z.writestr(filename, data)
+    return buf.getvalue()
+
+
 def build_pack(qi, product, industry, extra_files=()):
     """qi: QuotationInput. extra_files: [(file name, bytes)] added to the zip.
     Returns (zip bytes, ranked client list)."""

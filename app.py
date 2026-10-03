@@ -13,7 +13,7 @@ from currency import get_live_inr_per_usd
 from excel_io import build_workbook, workbook_to_bytes, parse_uploaded_quotation, diff_against_expected
 import ai
 import clients as client_list
-from pack import build_pack, safe_name
+from pack import build_pack, make_zip, safe_name
 import standards as std_reader
 import bisdata
 import about_bis
@@ -295,6 +295,18 @@ def api_standard_info():
     })
 
 
+@app.route("/api/standard-meta")
+def api_standard_meta():
+    number = request.args.get("is", "")
+    try:
+        year, name = bisdata.standard_meta(number)
+    except Exception:
+        return jsonify({"ok": False, "error": "The BIS website could not be reached. Please type the year and name."}), 502
+    if not year and not name:
+        return jsonify({"ok": False, "error": f"IS {number} was not found on the BIS website. Please type the year and name."}), 404
+    return jsonify({"ok": True, "year": year or "", "description": std_reader.clean_title([name or ""])})
+
+
 @app.route("/api/bis-data", methods=["POST"])
 def api_bis_data():
     numbers = [str(n) for n in (request.get_json(silent=True) or {}).get("is_numbers", [])][:about_bis.MAX_STANDARDS]
@@ -329,21 +341,37 @@ def about_bis_build(qid):
         count = int(form.get("count", "0"))
         if count < 1 or count != len(qi.is_items):
             raise ValueError("The IS list does not match the quotation.")
-        stds, standard_files = [], []
+        stds, standard_files, manual_files = [], [], []
         numbers = [item.is_number for item in qi.is_items]
-        downloaded = bisdata.fetch_manuals(numbers)
+        want_pack = form.get("mode") == "pack"
+        downloaded = bisdata.fetch_manuals(numbers) if want_pack else {}
         for i in range(count):
             number = qi.is_items[i].is_number
             tag = f"IS {number}"
+            have = form.get(f"have_{i}")
+            if have not in ("yes", "no"):
+                raise ValueError(f"Please answer for {tag}: is the BIS standard available? (Yes or No)")
+            skip = have == "no"                          # paid standard that was not bought
             upload = request.files.get(f"std_{i}")
-            if not upload or not upload.filename:
-                raise ValueError(f"Please add the BIS standard PDF for {tag}.")
-            data = upload.read()
-            info = std_reader.read_standard(data)
-            if not std_reader.same_standard(number, info["is_number"]):
-                raise ValueError(f"The PDF added for {tag} is IS {info['is_number']}. Please add the right file.")
+            data = None
+            info = {"is_number": None, "year": None, "description": "", "segments": []}
+            if not skip:
+                if not upload or not upload.filename:
+                    raise ValueError(f"Please upload the BIS standard PDF for {tag}, "
+                                     f"or answer No if it is not available.")
+                data = upload.read()
+                info = std_reader.read_standard(data)
+                if not std_reader.same_standard(number, info["is_number"]):
+                    raise ValueError(f"The PDF added for {tag} is IS {info['is_number']}. Please add the right file.")
             year = (form.get(f"year_{i}") or info["year"] or "").strip()
             description = (form.get(f"desc_{i}") or info["description"] or "").strip()
+            if skip and (not year or not description):
+                try:
+                    meta_year, meta_name = bisdata.standard_meta(number)
+                except Exception:
+                    meta_year, meta_name = None, None
+                year = year or (meta_year or "")
+                description = description or std_reader.clean_title([meta_name or ""])
             if not year:
                 raise ValueError(f"Please type the year of {tag} (for example 2022).")
             if not description:
@@ -353,8 +381,8 @@ def about_bis_build(qid):
             except ValueError:
                 raise ValueError(f"Please choose the implementation date for {tag}.")
             image = request.files.get(f"scope_img_{i}")
-            image_bytes = image.read() if image and image.filename else None
-            if not image_bytes and not info["segments"]:
+            image_bytes = image.read() if image and image.filename and not skip else None
+            if not skip and not image_bytes and not info["segments"]:
                 raise ValueError(f"The Scope of {tag} could not be found automatically. "
                                  f"Please upload a picture of its Scope.")
             std = {
@@ -362,17 +390,19 @@ def about_bis_build(qid):
                 "india": _int_field(form, f"india_{i}", f"Licensees in India for {tag}"),
                 "fmcs": _int_field(form, f"fmcs_{i}", f"Foreign licensees for {tag}"),
                 "segments": info["segments"], "scope_image": image_bytes,
-                "scope_doc": std_reader.open_pdf(data),
             }
-            opened.append(std["scope_doc"])
+            if data:
+                std["scope_doc"] = std_reader.open_pdf(data)
+                opened.append(std["scope_doc"])
+                standard_files.append((f"IS {number} - Standard.pdf", data))
             stds.append(std)
-            standard_files.append((f"3 Standard - IS {number}.pdf", data))
             manual = request.files.get(f"manual_{i}")
             manual_bytes = manual.read() if manual and manual.filename else downloaded.get(number)
-            if not manual_bytes:
+            if want_pack and not manual_bytes:
                 raise ValueError(f"No product manual for {tag} was found on the BIS website. "
                                  f"Please add the product manual PDF in the box for {tag}.")
-            standard_files.append((f"2 Product Manual - IS {number}.pdf", manual_bytes))
+            if manual_bytes:
+                manual_files.append((f"IS {number} - Product Manual.pdf", manual_bytes))
         labs = [ln.strip() for ln in (form.get("labs") or "").splitlines() if ln.strip()]
         if not labs:
             raise ValueError("The labs list is empty. Click 'Fetch from BIS' or type the lab names.")
@@ -381,8 +411,11 @@ def about_bis_build(qid):
         pdf = about_bis.build_about_bis(stds, labs, form.get("labs_etc") == "1")
         name = safe_name(qi.client_name)
         if form.get("mode") == "pack":
-            data, _ranked = build_pack(qi, qi.product, qi.industry,
-                                       extra_files=standard_files + [(f"5 About BIS - {name}.pdf", pdf)])
+            extras = [("2 Product Manuals.zip", make_zip(manual_files)),
+                      (f"5 About BIS - {name}.pdf", pdf)]
+            if standard_files:
+                extras.append(("3 Standards.zip", make_zip(standard_files)))
+            data, _ranked = build_pack(qi, qi.product, qi.industry, extra_files=extras)
             return send_file(io.BytesIO(data), as_attachment=True,
                              download_name=f"Document pack - {name}.zip", mimetype="application/zip")
         return send_file(io.BytesIO(pdf), as_attachment=True,

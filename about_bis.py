@@ -235,18 +235,60 @@ def _page_licensees(doc, stds, fonts):
         _centered(page, 1029, y, f"{int(s['fmcs']):02d}", fonts, size)
 
 
+def has_scope(std):
+    return bool(std.get("scope_image") or std.get("segments"))
+
+
+def _page_index(doc, fonts, drop_scope_line):
+    """Index slide (page 3). Redrawn without the 'What products ... covers' line when that slide is removed."""
+    page = doc[2]
+    entries = []
+    for block in page.get_text("dict")["blocks"]:
+        if block["type"] != 0:
+            continue
+        for line in block["lines"]:
+            spans = [s for s in line["spans"] if s["text"].strip() and s["font"].startswith("Calibri")
+                     and 150 < s["origin"][0] < 300]          # list text only, not the title
+            if spans:
+                entries.append(spans[0]["text"].strip())
+    if not entries or not drop_scope_line:
+        return
+    entries = [e for e in entries if not e.lower().startswith("what products does")]
+    _clear(page, fitz.Rect(180, 72, 945, 712))
+    fonts.install(page)
+    for i, text in enumerate(entries):
+        y = 94.3 + i * 39.85
+        page.insert_text((189.5, y), "\u2022", fontname="carlito", fontsize=24)
+        page.insert_text((213.3, y), text, fontname="carlito", fontsize=24)
+
+
+def _drop_page(doc, index):
+    """Delete a page and keep the PDF bookmarks pointing at the right pages."""
+    toc = [[lvl, title, pg] for lvl, title, pg in doc.get_toc() if pg != index + 1]
+    toc = [[lvl, title, pg - 1 if pg > index + 1 else pg] for lvl, title, pg in toc]
+    doc.delete_page(index)
+    doc.set_toc(toc)
+
+
 def build_about_bis(stds, labs, labs_etc):
-    """stds: list of dicts (number, year, description, impl_date, india, fmcs, scope_doc+segments or scope_image)."""
+    """stds: list of dicts (number, year, description, impl_date, india, fmcs, and optionally
+    scope_doc+segments or scope_image). The Scope slide only shows the standards that have a
+    Scope; if none has one, the slide is removed (and its line in the Index)."""
     if not stds:
         raise ValueError("At least one standard is needed.")
     if len(stds) > MAX_STANDARDS:
         raise ValueError(f"The About BIS PDF supports up to {MAX_STANDARDS} standards at a time.")
     doc = fitz.open(TEMPLATE)
     fonts = Fonts()
+    with_scope = [s for s in stds if has_scope(s)]
     _page_standards(doc, stds, fonts)
-    _page_scope(doc, stds, fonts)
+    if with_scope:
+        _page_scope(doc, with_scope, fonts)
     _page_labs(doc, stds, labs, labs_etc, fonts)
     _page_licensees(doc, stds, fonts)
+    if not with_scope:
+        _page_index(doc, fonts, True)
+        _drop_page(doc, 7)
     out = doc.tobytes(garbage=3, deflate=True)
     doc.close()
     return out

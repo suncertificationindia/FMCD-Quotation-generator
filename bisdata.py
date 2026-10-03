@@ -182,3 +182,12 @@ def fetch_manuals(is_numbers):
             return None
     with ThreadPoolExecutor(max_workers=min(8, max(1, len(is_numbers)))) as pool:
         return dict(zip(is_numbers, pool.map(one, is_numbers)))
+
+
+def standard_meta(is_number):
+    """(year, name) of a standard as shown in the BIS product-manual list, or (None, None)."""
+    row = find_manual(is_number)
+    if not row:
+        return None, None
+    m = re.search(r":\s*(\d{4})", row.get("standardNumber", ""))
+    return (m.group(1) if m else None), row.get("standardName", "")
