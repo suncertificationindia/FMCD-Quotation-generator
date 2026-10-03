@@ -12,6 +12,10 @@ LIMS_URL = "https://lims.bis.gov.in/home/search_labs/"
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; SunConsultantsQuotationTool)"}
 TIMEOUT = 15
 MAX_LABS = 10
+MANUAL_LIST_URL = "https://standardsadmin.bis.gov.in/review-service//getProductManualStandardsList"
+MANUAL_FILES_URL = "https://bmqsdqljvwgm.compat.objectstorage.ap-mumbai-1.oraclecloud.com/"
+MANUAL_HEADERS = dict(HEADERS, **{"Content-Type": "application/json", "Origin": "https://standards.bis.gov.in",
+                                  "Referer": "https://standards.bis.gov.in/"})
 
 
 def _rows(page_html):
@@ -106,13 +110,18 @@ def allocate_labs(labs_by_is, limit=MAX_LABS):
     return picked, len(everything) > len(picked)
 
 
+def _manual_title(number):
+    row = find_manual(number)
+    return row["standardName"] if row else ""
+
+
 def lookup(is_numbers):
     """Run all look-ups in parallel. Returns {'fmcs': {...}, 'labs_by_is': {...}, 'errors': [...]}."""
-    result = {"fmcs": {}, "labs_by_is": {}, "errors": []}
+    result = {"fmcs": {}, "labs_by_is": {}, "manuals": {}, "errors": []}
 
     def one(number):
-        out = {"number": number, "fmcs": None, "labs": None}
-        for key, func in (("fmcs", fmcs_count), ("labs", labs_for)):
+        out = {"number": number, "fmcs": None, "labs": None, "manual": None}
+        for key, func in (("fmcs", fmcs_count), ("labs", labs_for), ("manual", _manual_title)):
             try:
                 out[key] = func(number)
             except Exception:
@@ -125,8 +134,51 @@ def lookup(is_numbers):
                 result["errors"].append(f"Could not read the foreign licensee count for IS {out['number']}. Please type it.")
             else:
                 result["fmcs"][out["number"]] = out["fmcs"]
+            result["manuals"][out["number"]] = out["manual"] or None
             if out["labs"] is None:
                 result["errors"].append(f"Could not read the labs list for IS {out['number']}. Please type the labs.")
             else:
                 result["labs_by_is"][out["number"]] = out["labs"]
     return result
+
+
+# ---------------- product manuals (standards.bis.gov.in/website/product-manuals) ----------------
+
+def _compact(text):
+    return re.sub(r"\s+", "", text or "").upper()
+
+
+def find_manual(is_number):
+    """Entry of the BIS product-manual list for this exact IS number, or None."""
+    number = _compact(is_number)
+    body = {"searchTerm": re.sub(r"\D", "", is_number.split("(")[0]), "page": 1, "per_page": 50,
+            "sortBy": "committee", "sortOrder": "asc", "token": None, "refreshToken": None,
+            "clientId": None, "clientSecret": None, "sub": None}
+    resp = requests.post(MANUAL_LIST_URL, json=body, headers=MANUAL_HEADERS, timeout=TIMEOUT)
+    resp.raise_for_status()
+    hits = [row for row in resp.json().get("data", [])
+            if _compact(row.get("standardNumber")).startswith("IS" + number + ":") and row.get("filename")]
+    if not hits:
+        return None
+    return sorted(hits, key=lambda row: row["standardNumber"])[-1]       # latest year if there are several
+
+
+def download_manual(is_number):
+    """PDF bytes of the product manual, or None if BIS has no manual for this standard."""
+    row = find_manual(is_number)
+    if not row or not row["filename"].startswith("BisProd/"):
+        return None
+    resp = requests.get(MANUAL_FILES_URL + row["filename"], headers=HEADERS, timeout=30)
+    resp.raise_for_status()
+    return resp.content if resp.content[:5] == b"%PDF-" else None
+
+
+def fetch_manuals(is_numbers):
+    """{number: pdf bytes or None} for several standards, downloaded in parallel."""
+    def one(number):
+        try:
+            return download_manual(number)
+        except Exception:
+            return None
+    with ThreadPoolExecutor(max_workers=min(8, max(1, len(is_numbers)))) as pool:
+        return dict(zip(is_numbers, pool.map(one, is_numbers)))

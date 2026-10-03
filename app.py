@@ -310,7 +310,7 @@ def api_bis_data():
     found = bisdata.lookup(numbers)
     labs, more = bisdata.allocate_labs(found["labs_by_is"])
     return jsonify({"ok": True, "fmcs": found["fmcs"], "labs": labs, "more": more,
-                    "errors": found["errors"]})
+                    "manuals": found["manuals"], "errors": found["errors"]})
 
 
 def _int_field(form, name, label):
@@ -337,6 +337,8 @@ def about_bis_build(qid):
         if count < 1 or count != len(qi.is_items):
             raise ValueError("The IS list does not match the quotation.")
         stds, standard_files = [], []
+        numbers = [item.is_number for item in qi.is_items]
+        downloaded = bisdata.fetch_manuals(numbers)
         for i in range(count):
             number = qi.is_items[i].is_number
             tag = f"IS {number}"
@@ -372,6 +374,12 @@ def about_bis_build(qid):
             opened.append(std["scope_doc"])
             stds.append(std)
             standard_files.append((f"3 Standard - IS {number}.pdf", data))
+            manual = request.files.get(f"manual_{i}")
+            manual_bytes = manual.read() if manual and manual.filename else downloaded.get(number)
+            if not manual_bytes:
+                raise ValueError(f"No product manual for {tag} was found on the BIS website. "
+                                 f"Please add the product manual PDF in the box for {tag}.")
+            standard_files.append((f"2 Product Manual - IS {number}.pdf", manual_bytes))
         labs = [ln.strip() for ln in (form.get("labs") or "").splitlines() if ln.strip()]
         if not labs:
             raise ValueError("The labs list is empty. Click 'Fetch from BIS' or type the lab names.")

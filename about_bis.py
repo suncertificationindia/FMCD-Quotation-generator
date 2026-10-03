@@ -45,7 +45,7 @@ def heading_label(stds):
     if len(stds) == 1:
         return f"IS {stds[0]['number']} : {stds[0]['year']}"
     try:
-        nums = [int(s["number"]) for s in stds]
+        nums = sorted(int(s["number"]) for s in stds)
         same_year = len({s["year"] for s in stds}) == 1
         consecutive = all(b == a + 1 for a, b in zip(nums, nums[1:]))
         if same_year and consecutive and len(str(nums[0])) == len(str(nums[-1])):
