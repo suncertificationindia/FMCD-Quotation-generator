@@ -65,8 +65,9 @@ def build_about_company_pdf(ranked_clients):
     return out
 
 
-def build_pack(qi, product, industry):
-    """qi: QuotationInput. Returns (zip bytes, ranked client list)."""
+def build_pack(qi, product, industry, extra_files=()):
+    """qi: QuotationInput. extra_files: [(file name, bytes)] added to the zip.
+    Returns (zip bytes, ranked client list)."""
     ranked = client_list.rank_clients(product, industry, qi.country)
     name = safe_name(qi.client_name)
 
@@ -78,6 +79,8 @@ def build_pack(qi, product, industry):
         with open(os.path.join(ASSETS, filename), "rb") as f:
             files.append((f"{number} {filename}", f.read()))
 
+    files.extend(extra_files)
+    files.sort(key=lambda item: item[0])
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for filename, data in files:

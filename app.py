@@ -14,11 +14,17 @@ from excel_io import build_workbook, workbook_to_bytes, parse_uploaded_quotation
 import ai
 import clients as client_list
 from pack import build_pack, safe_name
+import standards as std_reader
+import bisdata
+import about_bis
+import base64
+import datetime
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
 
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["MAX_CONTENT_LENGTH"] = 80 * 1024 * 1024   # uploaded standards (PDF)
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 
 db.init_db()
@@ -253,6 +259,138 @@ def download_pack(qid):
     return send_file(io.BytesIO(data), as_attachment=True,
                      download_name=f"Document pack - {safe_name(q['client_name'])}.zip",
                      mimetype="application/zip")
+
+
+def stored_quotation_input(q):
+    """QuotationInput + product + industry for a saved quotation."""
+    qi, _warnings = build_input(q, strict=False)
+    meta = q["result"].get("meta") or {}
+    qi.product, qi.industry = meta.get("product", ""), meta.get("industry", "")
+    return qi
+
+
+@app.route("/quotations/<int:qid>/about-bis")
+def about_bis_page(qid):
+    q = db.get_quotation(qid)
+    if not q:
+        return "Not found", 404
+    numbers = [it["is_number"] for it in q["is_items"]]
+    return render_template("about_bis.html", q=q, numbers=numbers)
+
+
+@app.route("/api/standard-info", methods=["POST"])
+def api_standard_info():
+    f = request.files.get("file")
+    expected = request.form.get("expected", "")
+    if not f:
+        return jsonify({"ok": False, "error": "No file received."}), 400
+    data = f.read()
+    try:
+        info = std_reader.read_standard(data)
+        previews = std_reader.scope_previews(data, info["segments"])
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    warnings = list(info["warnings"])
+    mismatch = not std_reader.same_standard(expected, info["is_number"])
+    if mismatch:
+        warnings.insert(0, f"This file is IS {info['is_number']}, but this box is for IS {expected}. "
+                           f"Please choose the right file.")
+    return jsonify({
+        "ok": True, "is_number": info["is_number"], "year": info["year"],
+        "description": info["description"], "warnings": warnings, "mismatch": mismatch,
+        "previews": ["data:image/png;base64," + base64.b64encode(p).decode() for p in previews],
+    })
+
+
+@app.route("/api/bis-data", methods=["POST"])
+def api_bis_data():
+    numbers = [str(n) for n in (request.get_json(silent=True) or {}).get("is_numbers", [])][:about_bis.MAX_STANDARDS]
+    if not numbers:
+        return jsonify({"ok": False, "error": "No IS numbers."}), 400
+    found = bisdata.lookup(numbers)
+    labs, more = bisdata.allocate_labs(found["labs_by_is"])
+    return jsonify({"ok": True, "fmcs": found["fmcs"], "labs": labs, "more": more,
+                    "errors": found["errors"]})
+
+
+def _int_field(form, name, label):
+    raw = (form.get(name) or "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(f"{label} is missing or not a whole number.")
+    if value < 0:
+        raise ValueError(f"{label} cannot be negative.")
+    return value
+
+
+@app.route("/quotations/<int:qid>/about-bis/build", methods=["POST"])
+def about_bis_build(qid):
+    q = db.get_quotation(qid)
+    if not q:
+        return jsonify({"ok": False, "error": "Quotation not found."}), 404
+    form = request.form
+    opened = []
+    try:
+        qi = stored_quotation_input(q)
+        count = int(form.get("count", "0"))
+        if count < 1 or count != len(qi.is_items):
+            raise ValueError("The IS list does not match the quotation.")
+        stds, standard_files = [], []
+        for i in range(count):
+            number = qi.is_items[i].is_number
+            tag = f"IS {number}"
+            upload = request.files.get(f"std_{i}")
+            if not upload or not upload.filename:
+                raise ValueError(f"Please add the BIS standard PDF for {tag}.")
+            data = upload.read()
+            info = std_reader.read_standard(data)
+            if not std_reader.same_standard(number, info["is_number"]):
+                raise ValueError(f"The PDF added for {tag} is IS {info['is_number']}. Please add the right file.")
+            year = (form.get(f"year_{i}") or info["year"] or "").strip()
+            description = (form.get(f"desc_{i}") or info["description"] or "").strip()
+            if not year:
+                raise ValueError(f"Please type the year of {tag} (for example 2022).")
+            if not description:
+                raise ValueError(f"Please type the name of {tag} (for example Work chairs).")
+            try:
+                impl = datetime.date.fromisoformat((form.get(f"date_{i}") or "").strip())
+            except ValueError:
+                raise ValueError(f"Please choose the implementation date for {tag}.")
+            image = request.files.get(f"scope_img_{i}")
+            image_bytes = image.read() if image and image.filename else None
+            if not image_bytes and not info["segments"]:
+                raise ValueError(f"The Scope of {tag} could not be found automatically. "
+                                 f"Please upload a picture of its Scope.")
+            std = {
+                "number": number, "year": year, "description": description, "impl_date": impl,
+                "india": _int_field(form, f"india_{i}", f"Licensees in India for {tag}"),
+                "fmcs": _int_field(form, f"fmcs_{i}", f"Foreign licensees for {tag}"),
+                "segments": info["segments"], "scope_image": image_bytes,
+                "scope_doc": std_reader.open_pdf(data),
+            }
+            opened.append(std["scope_doc"])
+            stds.append(std)
+            standard_files.append((f"3 Standard - IS {number}.pdf", data))
+        labs = [ln.strip() for ln in (form.get("labs") or "").splitlines() if ln.strip()]
+        if not labs:
+            raise ValueError("The labs list is empty. Click 'Fetch from BIS' or type the lab names.")
+        if len(labs) > 10:
+            raise ValueError("A maximum of 10 labs fits on the slide. Please remove the extra lines.")
+        pdf = about_bis.build_about_bis(stds, labs, form.get("labs_etc") == "1")
+        name = safe_name(qi.client_name)
+        if form.get("mode") == "pack":
+            data, _ranked = build_pack(qi, qi.product, qi.industry,
+                                       extra_files=standard_files + [(f"5 About BIS - {name}.pdf", pdf)])
+            return send_file(io.BytesIO(data), as_attachment=True,
+                             download_name=f"Document pack - {name}.zip", mimetype="application/zip")
+        return send_file(io.BytesIO(pdf), as_attachment=True,
+                         download_name=f"About BIS - {name}.pdf", mimetype="application/pdf")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    finally:
+        for d in opened:
+            d.close()
 
 
 @app.route("/quotations")
