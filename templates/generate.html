@@ -2,19 +2,7 @@
 {% block title %}Generate Quotation{% endblock %}
 {% block content %}
 <h1>Generate Quotation</h1>
-<div class="subtitle">Describe the request in plain English, or fill the form directly.</div>
-
-<div class="card">
-  <div class="pill-row">
-    <span class="ai-status {{ 'on' if ai_on else '' }}"><span class="dot"></span>{{ 'AI-assisted command parsing' if ai_on else 'Rule-based command parsing (set ANTHROPIC_API_KEY to upgrade)' }}</span>
-  </div>
-  <label>Command</label>
-  <div class="command-box">
-    <input type="text" id="commandInput" placeholder="e.g. Create a quotation for Jusen Hardware in Vietnam for IS 18297">
-    <button class="btn" id="parseBtn">Parse</button>
-  </div>
-  <div class="muted" style="margin-top:8px;">This fills in the client, country and IS numbers below — you'll still need to enter testing/marking fee amounts per IS, since those come from external sources.</div>
-</div>
+<div class="subtitle">Fill in the client, product and IS standards, then calculate.</div>
 
 <div class="card">
   <h2>Quotation Details</h2>

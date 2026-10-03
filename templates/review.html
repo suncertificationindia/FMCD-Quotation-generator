@@ -5,9 +5,6 @@
 <div class="subtitle">Upload an existing quotation (.xlsx) and check it against the standard pricing formula.</div>
 
 <div class="card">
-  <div class="pill-row">
-    <span class="ai-status {{ 'on' if ai_on else '' }}"><span class="dot"></span>{{ 'AI-assisted summary' if ai_on else 'Rule-based summary (set ANTHROPIC_API_KEY to upgrade)' }}</span>
-  </div>
   <div class="upload-zone" id="dropZone">
     <div id="dropText">Drag & drop a quotation .xlsx here, or click to browse</div>
     <input type="file" id="fileInput" accept=".xlsx" style="display:none;">
