@@ -29,6 +29,21 @@
       <datalist id="countryList"></datalist>
     </div>
   </div>
+  <div class="grid-2">
+    <div class="field">
+      <label>Product</label>
+      <input type="text" id="product" placeholder="e.g. Hinges, Chairs, Toughened glass">
+    </div>
+    <div class="field">
+      <label>Industry</label>
+      <select id="industry">
+        <option value="">-- choose --</option>
+        {% for i in industries %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+        <option value="Other">Other</option>
+      </select>
+    </div>
+  </div>
+  <div class="muted" style="margin:-6px 0 14px;">Product and industry decide which clients are listed in the About Company PDF.</div>
   <div class="field">
     <label>Exchange Rate (INR per 1 USD)</label>
     <div style="display:flex; gap:10px; align-items:center;">
