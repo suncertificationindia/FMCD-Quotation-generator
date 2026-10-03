@@ -9,15 +9,22 @@
 
   <div class="card">
     <h2>1. The BIS standards</h2>
-    <div class="muted" style="margin-bottom:12px;">For each standard: download the PDF from the BIS website, then choose it below. The app reads the year, the name and the Scope from the file. Type the two things it cannot know: the date of implementation and the number of licensees in India.</div>
+    <div class="muted" style="margin-bottom:12px;">For each standard, first answer: is the BIS standard available? If Yes, upload the PDF - the app reads the year, the name and the Scope from it. If No (a paid standard that was not bought), the app takes the year and name from the BIS website, and that standard is left out of the Scope slide and of the standards zip. If none of the standards is available, the Scope slide is removed from About BIS and from its Index. For every standard, type the date of implementation and the number of licensees in India.</div>
     {% for n in numbers %}
     <div class="is-item-card std-card" data-number="{{ n }}" data-index="{{ loop.index0 }}">
       <h2 style="margin-top:0;">IS {{ n }}</h2>
       <div class="field">
-        <label>BIS standard (PDF)</label>
-        <input type="file" class="std-file" accept="application/pdf,.pdf">
-        <div class="std-msg" style="margin-top:8px;"></div>
+        <label>Is the BIS standard available?</label>
+        <label style="font-weight:500;display:inline-block;margin-right:22px;"><input type="radio" class="std-have" name="have_{{ loop.index0 }}" value="yes"> Yes, I have the PDF</label>
+        <label style="font-weight:500;display:inline-block;"><input type="radio" class="std-have" name="have_{{ loop.index0 }}" value="no"> No (paid standard, not bought)</label>
       </div>
+      <div class="std-upload" style="display:none;">
+        <div class="field">
+          <label>Upload the BIS standard (PDF)</label>
+          <input type="file" class="std-file" accept="application/pdf,.pdf">
+        </div>
+      </div>
+      <div class="std-msg" style="margin-bottom:10px;"></div>
       <div class="row">
         <div class="field"><label>Year of the standard</label><input type="text" class="std-year" placeholder="e.g. 2022"></div>
         <div class="field"><label>Name of the standard</label><input type="text" class="std-desc" placeholder="filled from the PDF"></div>
@@ -29,7 +36,7 @@
         <div class="field"><label>&nbsp;</label></div>
       </div>
       <div class="std-preview"></div>
-      <details style="margin-top:8px;" class="scope-details">
+      <details style="margin-top:8px;display:none;" class="scope-details">
         <summary class="muted">The Scope was not found? Upload a picture of it instead</summary>
         <div class="field" style="margin-top:8px;"><input type="file" class="std-scope-img" accept="image/png,image/jpeg"></div>
       </details>
@@ -61,7 +68,7 @@
       <button class="btn" id="packBtn" type="button">Download full document pack (.zip)</button>
       <button class="btn secondary" id="pdfBtn" type="button">Download only the About BIS PDF</button>
     </div>
-    <div class="muted" style="margin-top:10px;">The full pack contains all seven documents: the quotation, the product manuals (downloaded automatically from BIS), the standards, About Company, About BIS, the application form and the checklist.</div>
+    <div class="muted" style="margin-top:10px;">The full pack is one zip with the seven documents. The product manuals and the standards are each inside their own zip (2 Product Manuals.zip and 3 Standards.zip), so the client does not get a long list of files.</div>
   </div>
 </form>
 
