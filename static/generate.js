@@ -80,6 +80,8 @@ document.getElementById('calcBtn').addEventListener('click', async () => {
     client_name: document.getElementById('clientName').value.trim(),
     country: document.getElementById('country').value.trim(),
     exchange_rate: document.getElementById('exchangeRate').value,
+    product: document.getElementById('product').value.trim(),
+    industry: document.getElementById('industry').value,
     is_items: collectIsItems(),
   };
   const box = document.getElementById('resultBox');
