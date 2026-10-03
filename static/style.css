@@ -1,13 +1,13 @@
 :root {
-  --navy: #f5c518;
-  --navy-2: #e0b000;
-  --blue: #f5c518;
-  --blue-light: #fff4c2;
-  --on-yellow: #231c00;
-  --ink: #1f1b0a;
-  --muted: #6b6540;
-  --border: #ece4c2;
-  --bg: #fffdf3;
+  --navy: #0a4394;        /* sidebar - same blue as www.bis-certifications.com */
+  --navy-2: #083a80;
+  --blue: #0a4394;
+  --blue-light: #e3edf9;
+  --on-blue: #ffffff;
+  --ink: #0f1b33;
+  --muted: #5b6b85;
+  --border: #d5e1f0;
+  --bg: #f3f7fc;
   --ok: #16a34a;
   --warn: #d97706;
   --bad: #dc2626;
@@ -31,7 +31,7 @@ body {
 .sidebar {
   width: 230px;
   background: var(--navy);
-  color: var(--on-yellow);
+  color: var(--on-blue);
   padding: 20px 14px;
   display: flex;
   flex-direction: column;
@@ -48,7 +48,7 @@ body {
 
 .brand-mark {
   width: 36px; height: 36px;
-  background: var(--on-yellow);
+  background: #ffffff;
   color: var(--blue);
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
@@ -56,18 +56,18 @@ body {
 }
 
 .brand-name { font-weight: 700; font-size: 14px; }
-.brand-sub { font-size: 11px; color: #5e4d00; }
+.brand-sub { font-size: 11px; color: #b9d0f0; }
 
 .nav-link {
-  color: #3a2f00;
+  color: #dce8f8;
   text-decoration: none;
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
 }
-.nav-link:hover { background: rgba(0,0,0,0.08); color: var(--on-yellow); }
-.nav-link.active { background: var(--on-yellow); color: var(--blue); }
+.nav-link:hover { background: rgba(255,255,255,0.14); color: #ffffff; }
+.nav-link.active { background: #ffffff; color: var(--blue); }
 
 .content {
   flex: 1;
@@ -102,12 +102,12 @@ h2 { font-size: 17px; margin: 0 0 12px 0; }
 table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; }
-tr:hover td { background: #fafbfd; }
+tr:hover td { background: #f3f7fc; }
 
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--blue);
-  color: var(--on-yellow);
+  color: var(--on-blue);
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
@@ -116,9 +116,9 @@ tr:hover td { background: #fafbfd; }
   cursor: pointer;
   text-decoration: none;
 }
-.btn:hover { background: #e0b000; }
-.btn.secondary { background: #fff; color: var(--ink); border: 1px solid var(--border); }
-.btn.secondary:hover { background: #f1f5f9; }
+.btn:hover { background: var(--navy-2); }
+.btn.secondary { background: #fff; color: var(--blue); border: 1px solid var(--border); }
+.btn.secondary:hover { background: var(--blue-light); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 input[type=text], input[type=number], input[type=email], select, textarea {
@@ -145,7 +145,7 @@ label { font-size: 13px; font-weight: 600; color: var(--ink); display: block; ma
 .badge.ok { background: #dcfce7; color: var(--ok); }
 .badge.warn { background: #fef3c7; color: var(--warn); }
 .badge.bad { background: #fee2e2; color: var(--bad); }
-.badge.info { background: var(--blue-light); color: #7a5a00; }
+.badge.info { background: var(--blue-light); color: var(--blue); }
 .badge.neutral { background: #f1f5f9; color: var(--muted); }
 
 .command-box {
@@ -159,7 +159,7 @@ label { font-size: 13px; font-weight: 600; color: var(--ink); display: block; ma
   border-radius: 8px;
   padding: 14px;
   margin-bottom: 12px;
-  background: #fafbfd;
+  background: #f8fbff;
 }
 .is-item-card .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
@@ -175,7 +175,7 @@ label { font-size: 13px; font-weight: 600; color: var(--ink); display: block; ma
 .upload-zone.dragover { border-color: var(--blue); background: var(--blue-light); }
 
 .summary-box {
-  background: #f8fafc;
+  background: #f3f7fc;
   border-left: 3px solid var(--blue);
   padding: 14px 16px;
   border-radius: 6px;
@@ -197,5 +197,6 @@ label { font-size: 13px; font-weight: 600; color: var(--ink); display: block; ma
 .ai-status.on { background: #ecfdf5; color: var(--ok); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
-a { color: #7a5a00; }
-.btn.secondary { color: var(--ink); }
+a { color: var(--blue); }
+.btn { color: var(--on-blue); }
+.btn.secondary { color: var(--blue); }

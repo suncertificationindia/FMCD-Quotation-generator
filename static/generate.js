@@ -29,30 +29,6 @@ function addIsItem(data) {
 
 document.getElementById('addIsBtn').addEventListener('click', () => addIsItem());
 
-document.getElementById('parseBtn').addEventListener('click', async () => {
-  const text = document.getElementById('commandInput').value.trim();
-  if (!text) return;
-  const btn = document.getElementById('parseBtn');
-  btn.disabled = true; btn.textContent = 'Parsing…';
-  try {
-    const resp = await fetch('/api/parse-command', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({text})
-    });
-    const data = await resp.json();
-    if (data.client_name) document.getElementById('clientName').value = data.client_name;
-    if (data.country) document.getElementById('country').value = data.country;
-    if (data.is_numbers && data.is_numbers.length) {
-      container.innerHTML = '';
-      data.is_numbers.forEach(num => addIsItem({is_number: num}));
-    }
-  } catch (e) {
-    alert('Could not parse command: ' + e);
-  } finally {
-    btn.disabled = false; btn.textContent = 'Parse';
-  }
-});
-
 document.getElementById('refreshRate').addEventListener('click', async () => {
   const resp = await fetch('/api/exchange-rate');
   const data = await resp.json();

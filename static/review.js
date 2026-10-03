@@ -70,7 +70,6 @@ reviewBtn.addEventListener('click', async () => {
         <span class="badge neutral">File: ${esc(data.filename)}</span>
         <span class="badge neutral">Country used: ${esc(data.country_used || 'unknown')}</span>
         <span class="badge neutral">Rate used: ₹${data.rate_used} (from ${esc(data.rate_source)})</span>
-        <span class="badge ${data.ai_powered ? 'info' : 'neutral'}">${data.ai_powered ? 'AI summary' : 'Rule-based summary'}</span>
       </div>
       <div class="summary-box" style="white-space:pre-wrap;">${esc(data.summary)}</div>
     </div>
