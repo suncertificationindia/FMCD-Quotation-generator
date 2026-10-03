@@ -77,13 +77,6 @@ def generate_page():
                             ai_on=ai.ai_available())
 
 
-@app.route("/api/parse-command", methods=["POST"])
-def api_parse_command():
-    text = request.json.get("text", "")
-    parsed = ai.parse_command(text)
-    return jsonify(parsed)
-
-
 @app.route("/api/exchange-rate")
 def api_exchange_rate():
     return jsonify(get_live_inr_per_usd())
