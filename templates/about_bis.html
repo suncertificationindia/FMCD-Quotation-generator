@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}About BIS - {{ q.client_name }}{% endblock %}
+{% block content %}
+<h1>Standards and About BIS</h1>
+<div class="subtitle">{{ q.client_name }} &middot; {{ q.country }} &middot; <a href="{{ url_for('view_quotation', qid=q.id) }}">back to the quotation</a></div>
+
+<form id="bisForm" onsubmit="return false;">
+  <input type="hidden" id="count" value="{{ numbers|length }}">
+
+  <div class="card">
+    <h2>1. The BIS standards</h2>
+    <div class="muted" style="margin-bottom:12px;">For each standard: download the PDF from the BIS website, then choose it below. The app reads the year, the name and the Scope from the file. Type the two things it cannot know: the date of implementation and the number of licensees in India.</div>
+    {% for n in numbers %}
+    <div class="is-item-card std-card" data-number="{{ n }}" data-index="{{ loop.index0 }}">
+      <h2 style="margin-top:0;">IS {{ n }}</h2>
+      <div class="field">
+        <label>BIS standard (PDF)</label>
+        <input type="file" class="std-file" accept="application/pdf,.pdf">
+        <div class="std-msg" style="margin-top:8px;"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Year of the standard</label><input type="text" class="std-year" placeholder="e.g. 2022"></div>
+        <div class="field"><label>Name of the standard</label><input type="text" class="std-desc" placeholder="filled from the PDF"></div>
+        <div class="field"><label>Date of implementation</label><input type="date" class="std-date"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Licensees in India (from the MANAK site)</label><input type="number" min="0" step="1" class="std-india"></div>
+        <div class="field"><label>Foreign licensees (FMCS)</label><input type="number" min="0" step="1" class="std-fmcs" placeholder="use Fetch from BIS below"></div>
+        <div class="field"><label>&nbsp;</label></div>
+      </div>
+      <div class="std-preview"></div>
+      <details style="margin-top:8px;">
+        <summary class="muted">The Scope was not found? Upload a picture of it instead</summary>
+        <div class="field" style="margin-top:8px;"><input type="file" class="std-scope-img" accept="image/png,image/jpeg"></div>
+      </details>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>2. Foreign licensees and approved labs</h2>
+    <div class="muted" style="margin-bottom:12px;">The app looks both up on the public BIS sites. A maximum of 10 labs is used; with several standards, labs approved for all of them come first and the rest is shared equally. You can edit the list.</div>
+    <button class="btn secondary" id="fetchBtn" type="button">Fetch from BIS</button>
+    <div id="fetchMsg" style="margin-top:10px;"></div>
+    <div class="field" style="margin-top:12px;">
+      <label>Approved labs (one per line, maximum 10)</label>
+      <textarea id="labs" rows="11" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;"></textarea>
+    </div>
+    <label style="font-weight:600;"><input type="checkbox" id="labsEtc"> Add ", etc" after the last lab (more labs exist)</label>
+  </div>
+
+  <div class="card">
+    <h2>3. Download</h2>
+    <div id="buildMsg" style="margin-bottom:12px;"></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn" id="packBtn" type="button">Download full document pack (.zip)</button>
+      <button class="btn secondary" id="pdfBtn" type="button">Download only the About BIS PDF</button>
+    </div>
+    <div class="muted" style="margin-top:10px;">The full pack contains the quotation, the standards, About Company, About BIS, the application form and the checklist. Product manuals are still added by hand.</div>
+  </div>
+</form>
+
+<script>window.QID = {{ q.id }};</script>
+<script src="{{ url_for('static', filename='about_bis.js') }}"></script>
+{% endblock %}
